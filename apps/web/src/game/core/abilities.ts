@@ -1,5 +1,4 @@
 import type { CharacterClass } from "@xmoonverse/shared";
-import type { SkillDefinition } from "./skills";
 import { getSkillById } from "./skills";
 
 export interface AbilityDefinition {
