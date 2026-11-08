@@ -12,6 +12,31 @@ export default function GameCanvas() {
       return;
     }
 
+    const preventDefault = (event: Event) => {
+      event.preventDefault();
+    };
+
+    const preventGesture = (event: Event) => {
+      event.preventDefault();
+    };
+
+    const blockedEvents = [
+      "touchstart",
+      "touchmove",
+      "touchend",
+      "gesturestart",
+      "gesturechange",
+      "gestureend",
+      "contextmenu",
+      "dragstart",
+    ];
+
+    blockedEvents.forEach((eventName) => {
+      container.addEventListener(eventName, preventDefault, {
+        passive: false,
+      });
+    });
+
     const game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: container,
@@ -25,7 +50,10 @@ export default function GameCanvas() {
       },
 
       input: {
-        activePointers: 3,
+        activePointers: 5,
+        touch: {
+          capture: true,
+        },
       },
 
       disableContextMenu: true,
@@ -39,7 +67,41 @@ export default function GameCanvas() {
       },
     });
 
+    const canvas = game.canvas;
+
+    if (canvas) {
+      canvas.style.display = "block";
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      canvas.style.touchAction = "none";
+      canvas.style.userSelect = "none";
+      canvas.style.webkitUserSelect = "none";
+      canvas.style.webkitTapHighlightColor = "transparent";
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        game.loop.sleep();
+      } else {
+        game.loop.wake();
+      }
+    };
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange,
+    );
+
     return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+
+      blockedEvents.forEach((eventName) => {
+        container.removeEventListener(eventName, preventDefault);
+      });
+
       game.destroy(true);
     };
   }, []);
@@ -48,7 +110,10 @@ export default function GameCanvas() {
     <div
       ref={containerRef}
       className="game-canvas"
+      onContextMenu={preventGesture}
       style={{
+        position: "relative",
+        display: "block",
         width: "100%",
         height: "min(65vh, 560px)",
         minHeight: "360px",
@@ -57,9 +122,11 @@ export default function GameCanvas() {
         borderRadius: "20px",
         background: "#101026",
         touchAction: "none",
+        overscrollBehavior: "none",
         userSelect: "none",
         WebkitUserSelect: "none",
         WebkitTouchCallout: "none",
+        WebkitTapHighlightColor: "transparent",
       }}
     />
   );
