@@ -44,7 +44,10 @@ export default class MeadowScene extends Phaser.Scene {
 
   private minimap!: Phaser.GameObjects.Container;
   private minimapPlayerMarker!: Phaser.GameObjects.Arc;
-  private minimapResourceMarkers = new Map<string, Phaser.GameObjects.Arc>();
+  private minimapResourceMarkers = new Map<
+    string,
+    Phaser.GameObjects.Arc
+  >();
 
   private interactionPanel!: Phaser.GameObjects.Container;
   private interactionLabel!: Phaser.GameObjects.Text;
@@ -113,6 +116,7 @@ export default class MeadowScene extends Phaser.Scene {
 
   create() {
     this.resetSceneState();
+
     this.cameras.main.setBackgroundColor("#142b35");
 
     this.createGround();
@@ -142,6 +146,7 @@ export default class MeadowScene extends Phaser.Scene {
   private resetSceneState() {
     this.movementTarget = null;
     this.nearbyInteractable = null;
+
     this.dialogueOpen = false;
     this.inventoryOpen = false;
     this.playerMoving = false;
@@ -161,7 +166,9 @@ export default class MeadowScene extends Phaser.Scene {
     this.resourceCounts.Камень = 0;
   }
 
+  // --------------------------------------------------
   // WORLD
+  // --------------------------------------------------
 
   private createGround() {
     this.add
@@ -182,7 +189,12 @@ export default class MeadowScene extends Phaser.Scene {
       return (seed - 1) / 2147483646;
     };
 
-    const colors = [0x426c50, 0x527b55, 0x345d49, 0x63865a];
+    const colors = [
+      0x426c50,
+      0x527b55,
+      0x345d49,
+      0x63865a,
+    ];
 
     for (let i = 0; i < 850; i++) {
       const x = random() * this.worldWidth;
@@ -200,7 +212,14 @@ export default class MeadowScene extends Phaser.Scene {
       const y = 100 + random() * (this.worldHeight - 200);
 
       this.add
-        .ellipse(x, y, 90 + random() * 100, 55 + random() * 55, 0x63865a, 0.08)
+        .ellipse(
+          x,
+          y,
+          90 + random() * 100,
+          55 + random() * 55,
+          0x63865a,
+          0.08
+        )
         .setDepth(2);
     }
 
@@ -253,16 +272,29 @@ export default class MeadowScene extends Phaser.Scene {
     details.setDepth(5);
   }
 
-  private isNearImportantArea(x: number, y: number, distance: number) {
+  private isNearImportantArea(
+    x: number,
+    y: number,
+    distance: number
+  ) {
     const spawnDistance = Phaser.Math.Distance.Between(
-      x, y, this.spawnPosition.x, this.spawnPosition.y
+      x,
+      y,
+      this.spawnPosition.x,
+      this.spawnPosition.y
     );
 
     const campDistance = Phaser.Math.Distance.Between(
-      x, y, this.campPosition.x, this.campPosition.y
+      x,
+      y,
+      this.campPosition.x,
+      this.campPosition.y
     );
 
-    return spawnDistance < distance || campDistance < distance;
+    return (
+      spawnDistance < distance ||
+      campDistance < distance
+    );
   }
 
   private createNature() {
@@ -270,7 +302,9 @@ export default class MeadowScene extends Phaser.Scene {
       const x = Phaser.Math.Between(30, this.worldWidth - 30);
       const y = Phaser.Math.Between(30, this.worldHeight - 30);
 
-      if (this.isNearImportantArea(x, y, 105)) continue;
+      if (this.isNearImportantArea(x, y, 105)) {
+        continue;
+      }
 
       const flower = this.add.container(x, y);
       const color = Phaser.Utils.Array.GetRandom([
@@ -360,14 +394,23 @@ export default class MeadowScene extends Phaser.Scene {
       const x = 50 + random() * (this.worldWidth - 100);
       const y = 70 + random() * (this.worldHeight - 120);
 
-      if (this.isNearImportantArea(x, y, 145)) continue;
+      if (this.isNearImportantArea(x, y, 145)) {
+        continue;
+      }
 
       const overlaps = this.treeLocations.some(
         (tree) =>
-          Phaser.Math.Distance.Between(x, y, tree.x, tree.y) < 55
+          Phaser.Math.Distance.Between(
+            x,
+            y,
+            tree.x,
+            tree.y
+          ) < 55
       );
 
-      if (overlaps) continue;
+      if (overlaps) {
+        continue;
+      }
 
       this.treeLocations.push({ x, y });
 
@@ -375,54 +418,112 @@ export default class MeadowScene extends Phaser.Scene {
       this.add.circle(x, y, 16, 0x39744b).setDepth(y);
       this.add.circle(x - 5, y - 5, 7, 0x55935c).setDepth(y + 1);
 
-      this.obstacles.push({ x, y: y + 7, radius: 13 });
+      this.obstacles.push({
+        x,
+        y: y + 7,
+        radius: 13,
+      });
+
       created++;
     }
   }
 
+  // --------------------------------------------------
   // CAMP
+  // --------------------------------------------------
 
   private createTravelerCamp() {
     const { x, y } = this.campPosition;
 
-    this.add.ellipse(x, y + 5, 150, 100, 0x203d30, 0.65).setDepth(y - 5);
+    this.add
+      .ellipse(x, y + 5, 150, 100, 0x203d30, 0.65)
+      .setDepth(y - 5);
 
     const tent = this.add.graphics();
 
     tent.fillStyle(0x8d6d9f, 1);
-    tent.fillTriangle(x - 55, y - 20, x - 10, y - 70, x + 35, y - 20);
+    tent.fillTriangle(
+      x - 55, y - 20,
+      x - 10, y - 70,
+      x + 35, y - 20
+    );
 
     tent.fillStyle(0x604b78, 1);
-    tent.fillTriangle(x - 10, y - 20, x - 10, y - 70, x + 35, y - 20);
+    tent.fillTriangle(
+      x - 10, y - 20,
+      x - 10, y - 70,
+      x + 35, y - 20
+    );
 
     tent.fillStyle(0x302b40, 1);
-    tent.fillTriangle(x - 12, y - 20, x - 10, y - 48, x + 5, y - 20);
+    tent.fillTriangle(
+      x - 12, y - 20,
+      x - 10, y - 48,
+      x + 5, y - 20
+    );
 
     tent.setDepth(y + 2);
-    this.obstacles.push({ x: x - 10, y: y - 40, radius: 35 });
 
-    this.add.rectangle(x + 57, y - 10, 22, 20, 0x8a633f).setDepth(y + 3);
-    this.add.rectangle(x + 57, y - 10, 20, 3, 0xb38a5d).setDepth(y + 4);
-    this.obstacles.push({ x: x + 57, y: y - 10, radius: 14 });
+    this.obstacles.push({
+      x: x - 10,
+      y: y - 40,
+      radius: 35,
+    });
 
-    this.add.ellipse(x - 66, y + 5, 19, 23, 0x795034).setDepth(y + 4);
-    this.add.rectangle(x - 66, y + 5, 20, 3, 0xb38a5d).setDepth(y + 5);
-    this.obstacles.push({ x: x - 66, y: y + 5, radius: 12 });
+    this.add
+      .rectangle(x + 57, y - 10, 22, 20, 0x8a633f)
+      .setDepth(y + 3);
+
+    this.add
+      .rectangle(x + 57, y - 10, 20, 3, 0xb38a5d)
+      .setDepth(y + 4);
+
+    this.obstacles.push({
+      x: x + 57,
+      y: y - 10,
+      radius: 14,
+    });
+
+    this.add
+      .ellipse(x - 66, y + 5, 19, 23, 0x795034)
+      .setDepth(y + 4);
+
+    this.add
+      .rectangle(x - 66, y + 5, 20, 3, 0xb38a5d)
+      .setDepth(y + 5);
+
+    this.obstacles.push({
+      x: x - 66,
+      y: y + 5,
+      radius: 12,
+    });
 
     for (let i = 0; i < 8; i++) {
       const angle = (Math.PI * 2 * i) / 8;
-      this.add.circle(
-        x + Math.cos(angle) * 19,
-        y + Math.sin(angle) * 11,
-        5,
-        0x9a9b83
-      ).setDepth(y + 5);
+
+      this.add
+        .circle(
+          x + Math.cos(angle) * 19,
+          y + Math.sin(angle) * 11,
+          5,
+          0x9a9b83
+        )
+        .setDepth(y + 5);
     }
 
-    this.add.rectangle(x - 8, y + 13, 34, 6, 0x795034).setAngle(-18).setDepth(y + 9);
-    this.add.rectangle(x + 8, y + 13, 34, 6, 0x795034).setAngle(18).setDepth(y + 10);
+    this.add
+      .rectangle(x - 8, y + 13, 34, 6, 0x795034)
+      .setAngle(-18)
+      .setDepth(y + 9);
 
-    const glow = this.add.circle(x, y - 2, 28, 0xffa044, 0.12).setDepth(y + 6);
+    this.add
+      .rectangle(x + 8, y + 13, 34, 6, 0x795034)
+      .setAngle(18)
+      .setDepth(y + 10);
+
+    const glow = this.add
+      .circle(x, y - 2, 28, 0xffa044, 0.12)
+      .setDepth(y + 6);
 
     this.ambientTweens.push(
       this.tweens.add({
@@ -436,9 +537,15 @@ export default class MeadowScene extends Phaser.Scene {
       })
     );
 
-    const fire = this.add.triangle(
-      x, y - 5, 0, 20, 10, 0, 20, 20, 0xff9b42
-    ).setDepth(y + 7);
+    const fire = this.add
+      .triangle(
+        x, y - 5,
+        0, 20,
+        10, 0,
+        20, 20,
+        0xff9b42
+      )
+      .setDepth(y + 7);
 
     this.ambientTweens.push(
       this.tweens.add({
@@ -452,18 +559,26 @@ export default class MeadowScene extends Phaser.Scene {
       })
     );
 
-    this.add.triangle(
-      x, y - 3, 0, 13, 6, 2, 12, 13, 0xffdf80
-    ).setDepth(y + 8);
+    this.add
+      .triangle(
+        x, y - 3,
+        0, 13,
+        6, 2,
+        12, 13,
+        0xffdf80
+      )
+      .setDepth(y + 8);
 
     for (let i = 0; i < 3; i++) {
-      const smoke = this.add.circle(
-        x + Phaser.Math.Between(-4, 4),
-        y - 28,
-        4,
-        0xc6c6c6,
-        0.2
-      ).setDepth(y + 12);
+      const smoke = this.add
+        .circle(
+          x + Phaser.Math.Between(-4, 4),
+          y - 28,
+          4,
+          0xc6c6c6,
+          0.2
+        )
+        .setDepth(y + 12);
 
       this.ambientTweens.push(
         this.tweens.add({
@@ -477,7 +592,10 @@ export default class MeadowScene extends Phaser.Scene {
           delay: i * 500,
           ease: "Sine.easeOut",
           onRepeat: () => {
-            smoke.setPosition(x + Phaser.Math.Between(-4, 4), y - 28);
+            smoke.setPosition(
+              x + Phaser.Math.Between(-4, 4),
+              y - 28
+            );
             smoke.setAlpha(0.2);
             smoke.setScale(1);
           },
@@ -485,14 +603,17 @@ export default class MeadowScene extends Phaser.Scene {
       );
     }
 
-    this.add.text(x, y - 100, "ЛАГЕРЬ ПУТЕШЕСТВЕННИКОВ", {
-      fontFamily: "Arial",
-      fontSize: "10px",
-      fontStyle: "bold",
-      color: "#ffe1aa",
-      stroke: "#203528",
-      strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(y + 15);
+    this.add
+      .text(x, y - 100, "ЛАГЕРЬ ПУТЕШЕСТВЕННИКОВ", {
+        fontFamily: "Arial",
+        fontSize: "10px",
+        fontStyle: "bold",
+        color: "#ffe1aa",
+        stroke: "#203528",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setDepth(y + 15);
 
     this.interactables.push({
       id: "traveler-camp",
@@ -522,7 +643,9 @@ export default class MeadowScene extends Phaser.Scene {
     });
   }
 
+  // --------------------------------------------------
   // NPC
+  // --------------------------------------------------
 
   private createNPC() {
     const x = this.campPosition.x + 85;
@@ -535,17 +658,26 @@ export default class MeadowScene extends Phaser.Scene {
 
     hair.setStrokeStyle(5, 0x4a3528);
 
-    const npc = this.add.container(x, y, [shadow, body, head, hair]);
+    const npc = this.add.container(x, y, [
+      shadow,
+      body,
+      head,
+      hair,
+    ]);
+
     npc.setDepth(y);
 
-    this.add.text(x, y - 42, "Элиан", {
-      fontFamily: "Arial",
-      fontSize: "11px",
-      fontStyle: "bold",
-      color: "#fff0c9",
-      stroke: "#203528",
-      strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(y + 1);
+    this.add
+      .text(x, y - 42, "Элиан", {
+        fontFamily: "Arial",
+        fontSize: "11px",
+        fontStyle: "bold",
+        color: "#fff0c9",
+        stroke: "#203528",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setDepth(y + 1);
 
     this.ambientTweens.push(
       this.tweens.add({
@@ -568,10 +700,16 @@ export default class MeadowScene extends Phaser.Scene {
       dialogueIndex: 0,
     });
 
-    this.obstacles.push({ x, y: y + 7, radius: 12 });
+    this.obstacles.push({
+      x,
+      y: y + 7,
+      radius: 12,
+    });
   }
 
+  // --------------------------------------------------
   // RESOURCES
+  // --------------------------------------------------
 
   private createResources() {
     const resources: ResourceDefinition[] = [
@@ -583,7 +721,9 @@ export default class MeadowScene extends Phaser.Scene {
       { id: "stone-2", x: 1650, y: 980, type: "Камень" },
     ];
 
-    for (const resource of resources) this.createResource(resource);
+    for (const resource of resources) {
+      this.createResource(resource);
+    }
   }
 
   private createResource(resource: ResourceDefinition) {
@@ -605,7 +745,13 @@ export default class MeadowScene extends Phaser.Scene {
       ]);
     } else {
       container.add([
-        this.add.triangle(0, 0, -9, 6, 0, -9, 10, 6, 0x9b9d9c),
+        this.add.triangle(
+          0, 0,
+          -9, 6,
+          0, -9,
+          10, 6,
+          0x9b9d9c
+        ),
         this.add.line(0, 0, -5, 1, 4, -4, 0xd2d2ca).setLineWidth(2),
       ]);
     }
@@ -649,10 +795,12 @@ export default class MeadowScene extends Phaser.Scene {
 
     target.state = "collected";
     target.collected = true;
+
     this.resourceCounts[target.resourceType]++;
 
     this.updateInventoryInterface();
     this.updateResourceMinimapMarker(target);
+
     this.tweens.killTweensOf(target.sprite);
 
     this.tweens.add({
@@ -672,6 +820,7 @@ export default class MeadowScene extends Phaser.Scene {
 
     this.showNotification(`+1 ${target.resourceType}`);
     this.nearbyInteractable = null;
+
     target.state = "regrowing";
 
     target.respawnEvent = this.time.delayedCall(
@@ -683,7 +832,10 @@ export default class MeadowScene extends Phaser.Scene {
   }
 
   private regrowResource(target: InteractableObject) {
-    if (!target.sprite || !target.sprite.active) return;
+    // Check the Phaser GameObject, not the data interface.
+    if (!target.sprite || !target.sprite.active) {
+      return;
+    }
 
     target.state = "available";
     target.collected = false;
@@ -705,7 +857,9 @@ export default class MeadowScene extends Phaser.Scene {
     this.updateNearbyInteractable();
   }
 
+  // --------------------------------------------------
   // PLAYER
+  // --------------------------------------------------
 
   private createPlayer() {
     const shadow = this.add.ellipse(0, 12, 25, 9, 0x10251e, 0.45);
@@ -723,19 +877,23 @@ export default class MeadowScene extends Phaser.Scene {
 
     this.player.setDepth(this.player.y);
 
-    this.playerBody = this.add.circle(
-      this.spawnPosition.x,
-      this.spawnPosition.y + 3,
-      this.playerRadius,
-      0xffffff,
-      0
-    ).setVisible(false);
+    this.playerBody = this.add
+      .circle(
+        this.spawnPosition.x,
+        this.spawnPosition.y + 3,
+        this.playerRadius,
+        0xffffff,
+        0
+      )
+      .setVisible(false);
 
     this.playerBody.setDepth(this.player.y + 1);
   }
 
   private updatePlayerAnimation(moving: boolean) {
-    if (moving === this.playerMoving) return;
+    if (moving === this.playerMoving) {
+      return;
+    }
 
     this.playerMoving = moving;
 
@@ -755,13 +913,19 @@ export default class MeadowScene extends Phaser.Scene {
   }
 
   private updatePlayerFacing(directionX: number) {
-    if (Math.abs(directionX) < 0.01) return;
+    if (Math.abs(directionX) < 0.01) {
+      return;
+    }
 
     this.facing = directionX > 0 ? 1 : -1;
+
+    // Container uses setScale(x, y), not setScaleX().
     this.player.setScale(this.facing, 1);
   }
 
+  // --------------------------------------------------
   // DESTINATION MARKER
+  // --------------------------------------------------
 
   private createDestinationMarker() {
     this.targetMarker = this.add.graphics();
@@ -788,10 +952,22 @@ export default class MeadowScene extends Phaser.Scene {
       return;
     }
 
-    const targetX = Phaser.Math.Clamp(x, 20, this.worldWidth - 20);
-    const targetY = Phaser.Math.Clamp(y, 20, this.worldHeight - 20);
+    const targetX = Phaser.Math.Clamp(
+      x,
+      20,
+      this.worldWidth - 20
+    );
 
-    this.movementTarget = new Phaser.Math.Vector2(targetX, targetY);
+    const targetY = Phaser.Math.Clamp(
+      y,
+      20,
+      this.worldHeight - 20
+    );
+
+    this.movementTarget = new Phaser.Math.Vector2(
+      targetX,
+      targetY
+    );
 
     this.targetMarkerTween?.stop();
 
@@ -816,18 +992,27 @@ export default class MeadowScene extends Phaser.Scene {
     this.targetMarkerTween?.stop();
     this.targetMarkerTween = null;
 
-    if (this.targetMarker) this.targetMarker.setVisible(false);
+    if (this.targetMarker) {
+      this.targetMarker.setVisible(false);
+    }
   }
 
+  // --------------------------------------------------
   // MOVEMENT AND COLLISIONS
+  // --------------------------------------------------
 
   private isBlocked(x: number, y: number) {
     for (const obstacle of this.obstacles) {
       const distance = Phaser.Math.Distance.Between(
-        x, y, obstacle.x, obstacle.y
+        x,
+        y,
+        obstacle.x,
+        obstacle.y
       );
 
-      if (distance < obstacle.radius + this.playerRadius) return true;
+      if (distance < obstacle.radius + this.playerRadius) {
+        return true;
+      }
     }
 
     return false;
@@ -861,7 +1046,6 @@ export default class MeadowScene extends Phaser.Scene {
       this.player.y + 3
     );
 
-    // Завершаем движение только после фактического достижения цели.
     if (
       this.movementTarget &&
       Phaser.Math.Distance.Between(
@@ -896,7 +1080,6 @@ export default class MeadowScene extends Phaser.Scene {
 
     direction.normalize();
 
-    // Не перелетаем через точку назначения на последнем шаге.
     const step = Math.min(
       distance,
       this.playerSpeed * Math.min(delta, 50) / 1000
@@ -904,11 +1087,12 @@ export default class MeadowScene extends Phaser.Scene {
 
     return direction.scale(step);
   }
-
   private updateKeyboardMovement() {
     const direction = new Phaser.Math.Vector2(0, 0);
 
-    if (!this.cursors) return direction;
+    if (!this.cursors) {
+      return direction;
+    }
 
     if (this.cursors.left.isDown) direction.x -= 1;
     if (this.cursors.right.isDown) direction.x += 1;
@@ -918,49 +1102,66 @@ export default class MeadowScene extends Phaser.Scene {
     return direction;
   }
 
+  // --------------------------------------------------
   // USER INTERFACE
+  // --------------------------------------------------
 
   private createWorldInterface() {
-    this.add.text(18, 18, "GREENHAVEN", {
-      fontFamily: "Arial",
-      fontSize: "16px",
-      fontStyle: "bold",
-      color: "#e3f4d9",
-      stroke: "#17342b",
-      strokeThickness: 4,
-    }).setScrollFactor(0).setDepth(1000);
+    this.add
+      .text(18, 18, "GREENHAVEN", {
+        fontFamily: "Arial",
+        fontSize: "16px",
+        fontStyle: "bold",
+        color: "#e3f4d9",
+        stroke: "#17342b",
+        strokeThickness: 4,
+      })
+      .setScrollFactor(0)
+      .setDepth(1000);
 
-    this.add.text(18, 40, "Стартовая долина", {
-      fontFamily: "Arial",
-      fontSize: "11px",
-      color: "#c5d9c4",
-    }).setScrollFactor(0).setDepth(1000);
+    this.add
+      .text(18, 40, "Стартовая долина", {
+        fontFamily: "Arial",
+        fontSize: "11px",
+        color: "#c5d9c4",
+      })
+      .setScrollFactor(0)
+      .setDepth(1000);
 
-    this.resourceCounter = this.add.text(
-      18, 65, "Собрано ресурсов: 0", {
+    this.resourceCounter = this.add
+      .text(18, 65, "Собрано ресурсов: 0", {
         fontFamily: "Arial",
         fontSize: "10px",
         color: "#e3d5ff",
         backgroundColor: "#17342b",
         padding: { x: 7, y: 5 },
-      }
-    ).setScrollFactor(0).setDepth(1000);
+      })
+      .setScrollFactor(0)
+      .setDepth(1000);
 
     const inventoryBackground = this.add.rectangle(
-      0, 0, 150, 28, 0x17342b, 0.94
+      0,
+      0,
+      150,
+      28,
+      0x17342b,
+      0.94
     );
 
     inventoryBackground.setStrokeStyle(1, 0xb89aff, 0.6);
 
-    this.inventoryText = this.add.text(0, 0, "Рюкзак  ·  0", {
-      fontFamily: "Arial",
-      fontSize: "10px",
-      color: "#ffffff",
-    }).setOrigin(0.5);
+    this.inventoryText = this.add
+      .text(0, 0, "Рюкзак  ·  0", {
+        fontFamily: "Arial",
+        fontSize: "10px",
+        color: "#ffffff",
+      })
+      .setOrigin(0.5);
 
-    this.inventoryPanel = this.add.container(
-      0, 0, [inventoryBackground, this.inventoryText]
-    );
+    this.inventoryPanel = this.add.container(0, 0, [
+      inventoryBackground,
+      this.inventoryText,
+    ]);
 
     this.inventoryPanel.setScrollFactor(0);
     this.inventoryPanel.setDepth(1050);
@@ -976,18 +1177,25 @@ export default class MeadowScene extends Phaser.Scene {
     );
 
     const hintBackground = this.add.rectangle(
-      0, 0, 250, 34, 0x14271f, 0.92
+      0,
+      0,
+      250,
+      34,
+      0x14271f,
+      0.92
     );
 
     hintBackground.setStrokeStyle(1, 0xb89aff, 0.65);
 
-    this.interactionLabel = this.add.text(0, 0, "", {
-      fontFamily: "Arial",
-      fontSize: "11px",
-      color: "#ffffff",
-      align: "center",
-      wordWrap: { width: 230 },
-    }).setOrigin(0.5);
+    this.interactionLabel = this.add
+      .text(0, 0, "", {
+        fontFamily: "Arial",
+        fontSize: "11px",
+        color: "#ffffff",
+        align: "center",
+        wordWrap: { width: 230 },
+      })
+      .setOrigin(0.5);
 
     this.interactionPanel = this.add.container(
       this.scale.width / 2,
@@ -1000,36 +1208,58 @@ export default class MeadowScene extends Phaser.Scene {
     this.interactionPanel.setVisible(false);
 
     const dialogueBackground = this.add.rectangle(
-      0, 0, 320, 125, 0x111b20, 0.97
+      0,
+      0,
+      320,
+      125,
+      0x111b20,
+      0.97
     );
 
     dialogueBackground.setStrokeStyle(1, 0xb89aff, 0.8);
 
-    this.dialogueTitle = this.add.text(-145, -48, "ЭЛИАН", {
-      fontFamily: "Arial",
-      fontSize: "11px",
-      fontStyle: "bold",
-      color: "#d8c4ff",
-    });
+    this.dialogueTitle = this.add.text(
+      -145,
+      -48,
+      "ЭЛИАН",
+      {
+        fontFamily: "Arial",
+        fontSize: "11px",
+        fontStyle: "bold",
+        color: "#d8c4ff",
+      }
+    );
 
-    this.dialogueText = this.add.text(-145, -23, "", {
-      fontFamily: "Arial",
-      fontSize: "11px",
-      color: "#f0eee8",
-      wordWrap: { width: 285 },
-      lineSpacing: 4,
-    });
+    this.dialogueText = this.add.text(
+      -145,
+      -23,
+      "",
+      {
+        fontFamily: "Arial",
+        fontSize: "11px",
+        color: "#f0eee8",
+        wordWrap: { width: 285 },
+        lineSpacing: 4,
+      }
+    );
 
-    const closeHint = this.add.text(145, 48, "E / кнопка — закрыть", {
-      fontFamily: "Arial",
-      fontSize: "9px",
-      color: "#a9b8ae",
-    }).setOrigin(1, 0.5);
+    const closeHint = this.add
+      .text(145, 48, "E / кнопка — закрыть", {
+        fontFamily: "Arial",
+        fontSize: "9px",
+        color: "#a9b8ae",
+      })
+      .setOrigin(1, 0.5);
 
     this.dialoguePanel = this.add.container(
       this.scale.width / 2,
       this.scale.height - 160,
-      [dialogueBackground, this.dialogueTitle, this.dialogueText, closeHint]
+      [
+        dialogueBackground,
+        this.dialogueTitle,
+        this.dialogueText,
+        closeHint,
+      ]
     );
 
     this.dialoguePanel.setScrollFactor(0);
@@ -1037,49 +1267,76 @@ export default class MeadowScene extends Phaser.Scene {
     this.dialoguePanel.setVisible(false);
 
     this.mobileButtonBackground = this.add.circle(
-      0, 0, 30, 0x5a447e, 0.95
+      0,
+      0,
+      30,
+      0x5a447e,
+      0.95
     );
 
-    this.mobileButtonBackground.setStrokeStyle(2, 0xd8c4ff, 0.9);
+    this.mobileButtonBackground.setStrokeStyle(
+      2,
+      0xd8c4ff,
+      0.9
+    );
 
-    this.mobileButtonText = this.add.text(0, 0, "E", {
-      fontFamily: "Arial",
-      fontSize: "18px",
-      fontStyle: "bold",
-      color: "#ffffff",
-    }).setOrigin(0.5);
+    this.mobileButtonText = this.add
+      .text(0, 0, "E", {
+        fontFamily: "Arial",
+        fontSize: "18px",
+        fontStyle: "bold",
+        color: "#ffffff",
+      })
+      .setOrigin(0.5);
 
     this.mobileInteractButton = this.add.container(
       this.scale.width - 55,
       this.scale.height - 65,
-      [this.mobileButtonBackground, this.mobileButtonText]
+      [
+        this.mobileButtonBackground,
+        this.mobileButtonText,
+      ]
     );
 
     this.mobileInteractButton.setScrollFactor(0);
     this.mobileInteractButton.setDepth(1400);
     this.mobileInteractButton.setSize(60, 60);
 
-    // ВАЖНО: здесь больше нет отдельного POINTER_DOWN.
-    // Касание кнопки обрабатывается в handlePointerDown().
+    // Кнопка обрабатывается в handlePointerDown().
+    // Не назначаем ей отдельный POINTER_DOWN обработчик.
     this.mobileInteractButton.setVisible(false);
 
     const notificationBackground = this.add.rectangle(
-      0, 0, 180, 32, 0x17342b, 0.95
+      0,
+      0,
+      180,
+      32,
+      0x17342b,
+      0.95
     );
 
-    notificationBackground.setStrokeStyle(1, 0xb89aff, 0.8);
+    notificationBackground.setStrokeStyle(
+      1,
+      0xb89aff,
+      0.8
+    );
 
-    this.notificationText = this.add.text(0, 0, "", {
-      fontFamily: "Arial",
-      fontSize: "11px",
-      fontStyle: "bold",
-      color: "#ffffff",
-    }).setOrigin(0.5);
+    this.notificationText = this.add
+      .text(0, 0, "", {
+        fontFamily: "Arial",
+        fontSize: "11px",
+        fontStyle: "bold",
+        color: "#ffffff",
+      })
+      .setOrigin(0.5);
 
     this.notificationContainer = this.add.container(
       this.scale.width / 2,
       this.scale.height - 115,
-      [notificationBackground, this.notificationText]
+      [
+        notificationBackground,
+        this.notificationText,
+      ]
     );
 
     this.notificationContainer.setScrollFactor(0);
@@ -1093,14 +1350,20 @@ export default class MeadowScene extends Phaser.Scene {
       this.resourceCounts.Ягоды +
       this.resourceCounts.Камень;
 
-    this.resourceCounter.setText(`Собрано ресурсов: ${total}`);
+    this.resourceCounter.setText(
+      `Собрано ресурсов: ${total}`
+    );
+
     this.inventoryText.setText(`Рюкзак  ·  ${total}`);
 
-    if (this.inventoryOpen) this.refreshInventoryPanel();
+    if (this.inventoryOpen) {
+      this.refreshInventoryPanel();
+    }
   }
 
   private showNotification(message: string) {
     this.notificationTween?.stop();
+
     this.notificationText.setText(message);
 
     this.notificationContainer.setPosition(
@@ -1123,7 +1386,9 @@ export default class MeadowScene extends Phaser.Scene {
   }
 
   private toggleInventory() {
-    if (this.dialogueOpen) return;
+    if (this.dialogueOpen) {
+      return;
+    }
 
     if (this.inventoryOpen) {
       this.closeInventory();
@@ -1146,6 +1411,7 @@ export default class MeadowScene extends Phaser.Scene {
       this.resourceCounts.Камень;
 
     this.dialoguePanel.setVisible(this.inventoryOpen);
+
     this.dialogueTitle.setText("ИНВЕНТАРЬ");
 
     this.dialogueText.setText(
@@ -1165,23 +1431,700 @@ export default class MeadowScene extends Phaser.Scene {
   }
 
   private positionInterface() {
-    if (!this.interactionPanel) return;
+    if (!this.interactionPanel) {
+      return;
+    }
 
     const width = this.scale.width;
     const height = this.scale.height;
 
-    this.interactionPanel.setPosition(width / 2, height - 72);
-    this.dialoguePanel?.setPosition(width / 2, height - 155);
-    this.mobileInteractButton?.setPosition(width - 55, height - 65);
-    this.notificationContainer?.setPosition(width / 2, height - 115);
+    this.interactionPanel.setPosition(
+      width / 2,
+      height - 72
+    );
+
+    this.dialoguePanel?.setPosition(
+      width / 2,
+      height - 155
+    );
+
+    this.mobileInteractButton?.setPosition(
+      width - 55,
+      height - 65
+    );
+
+    this.notificationContainer?.setPosition(
+      width / 2,
+      height - 115
+    );
+
     this.inventoryPanel?.setPosition(95, 105);
   }
 
+  // --------------------------------------------------
   // MINIMAP
+  // --------------------------------------------------
 
   private createMinimap() {
     const panel = this.add.graphics();
 
     panel.fillStyle(0x101d19, 0.94);
     panel.fillRoundedRect(0, 0, 132, 94, 7);
-    panel.lineStyle(1, 0xb89aff,
+    panel.lineStyle(1, 0xb89aff, 0.75);
+    panel.strokeRoundedRect(0, 0, 132, 94, 7);
+
+    const map = this.add.graphics();
+
+    map.fillStyle(0x294b43, 1);
+    map.fillRect(8, 20, 116, 65);
+    map.lineStyle(1, 0x8ba98a, 0.45);
+    map.strokeRect(8, 20, 116, 65);
+
+    map.fillStyle(0x79a76e, 0.9);
+
+    for (const tree of this.treeLocations) {
+      const point = this.worldToMinimap(tree.x, tree.y);
+      map.fillCircle(point.x, point.y, 1.2);
+    }
+
+    const spawn = this.worldToMinimap(
+      this.spawnPosition.x,
+      this.spawnPosition.y
+    );
+
+    map.fillStyle(0xd8c4ff, 1);
+    map.fillCircle(spawn.x, spawn.y, 3);
+
+    const camp = this.worldToMinimap(
+      this.campPosition.x,
+      this.campPosition.y
+    );
+
+    map.fillStyle(0xffa044, 1);
+    map.fillCircle(camp.x, camp.y, 3.5);
+    map.lineStyle(1, 0xffe1aa, 0.9);
+    map.strokeCircle(camp.x, camp.y, 5);
+
+    const npc = this.interactables.find(
+      (item) => item.type === "npc"
+    );
+
+    if (npc) {
+      const point = this.worldToMinimap(npc.x, npc.y);
+      map.fillStyle(0x78c9e8, 1);
+      map.fillCircle(point.x, point.y, 2.5);
+    }
+
+    const markers: Phaser.GameObjects.GameObject[] = [];
+
+    for (const item of this.interactables) {
+      if (item.type !== "resource") {
+        continue;
+      }
+
+      const point = this.worldToMinimap(item.x, item.y);
+
+      const color =
+        item.resourceType === "Гриб"
+          ? 0xe68ca9
+          : item.resourceType === "Ягоды"
+            ? 0xd95779
+            : 0xbfc8c6;
+
+      const marker = this.add
+        .circle(
+          point.x,
+          point.y,
+          2,
+          color,
+          item.state === "available" ? 1 : 0.2
+        )
+        .setStrokeStyle(0.5, 0xffffff, 0.6);
+
+      this.minimapResourceMarkers.set(item.id, marker);
+      markers.push(marker);
+    }
+
+    const title = this.add.text(10, 5, "КАРТА", {
+      fontFamily: "Arial",
+      fontSize: "9px",
+      fontStyle: "bold",
+      color: "#e3d5ff",
+      letterSpacing: 1,
+    });
+
+    this.minimapPlayerMarker = this.add
+      .circle(spawn.x, spawn.y, 3.5, 0xffffff)
+      .setStrokeStyle(1, 0x7651c7);
+
+    this.minimap = this.add.container(
+      0,
+      0,
+      [
+        panel,
+        map,
+        title,
+        ...markers,
+        this.minimapPlayerMarker,
+      ]
+    );
+
+    this.minimap.setScrollFactor(0);
+    this.minimap.setDepth(1100);
+  }
+
+  private worldToMinimap(x: number, y: number) {
+    return {
+      x:
+        this.minimapBounds.x +
+        (x / this.worldWidth) * this.minimapBounds.width,
+      y:
+        this.minimapBounds.y +
+        (y / this.worldHeight) * this.minimapBounds.height,
+    };
+  }
+
+  private updateResourceMinimapMarker(
+    target: InteractableObject
+  ) {
+    const marker = this.minimapResourceMarkers.get(target.id);
+
+    if (!marker) {
+      return;
+    }
+
+    marker.setAlpha(
+      target.state === "available" ? 1 : 0.2
+    );
+  }
+
+  private updateMinimap() {
+    if (!this.player || !this.minimapPlayerMarker) {
+      return;
+    }
+
+    const point = this.worldToMinimap(
+      this.player.x,
+      this.player.y
+    );
+
+    this.minimapPlayerMarker.setPosition(
+      point.x,
+      point.y
+    );
+  }
+
+  private positionMinimap() {
+    if (!this.minimap) {
+      return;
+    }
+
+    this.minimap.setPosition(
+      Math.max(8, this.scale.width - 140),
+      8
+    );
+  }
+
+  private handleMinimapNavigation(
+    pointer: Phaser.Input.Pointer
+  ): boolean {
+    if (!this.minimap || this.dialogueOpen || this.inventoryOpen) {
+      return false;
+    }
+
+    const localX = pointer.x - this.minimap.x;
+    const localY = pointer.y - this.minimap.y;
+
+    const { x, y, width, height } = this.minimapBounds;
+
+    const insideMap =
+      localX >= x &&
+      localX <= x + width &&
+      localY >= y &&
+      localY <= y + height;
+
+    if (!insideMap) {
+      return false;
+    }
+
+    const normalizedX = (localX - x) / width;
+    const normalizedY = (localY - y) / height;
+
+    this.setMovementDestination(
+      normalizedX * this.worldWidth,
+      normalizedY * this.worldHeight
+    );
+
+    return true;
+  }
+
+  // --------------------------------------------------
+  // DAY AND NIGHT
+  // --------------------------------------------------
+
+  private createDayNightSystem() {
+    this.dayNightOverlay = this.add
+      .rectangle(
+        0,
+        0,
+        this.scale.width,
+        this.scale.height,
+        0x101b45,
+        0
+      )
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(900);
+
+    this.timeLabel = this.add
+      .text(18, 88, "", {
+        fontFamily: "Arial",
+        fontSize: "9px",
+        color: "#d8d5ed",
+        backgroundColor: "#17342b",
+        padding: { x: 5, y: 3 },
+      })
+      .setScrollFactor(0)
+      .setDepth(1000);
+
+    this.updateDayNight();
+  }
+
+  private updateDayNight() {
+    const hour = Math.floor(this.worldTime * 24);
+
+    let alpha = 0;
+    let label = "День";
+
+    if (hour >= 6 && hour < 8) {
+      alpha = 0.12;
+      label = "Рассвет";
+    } else if (hour >= 8 && hour < 17) {
+      alpha = 0;
+      label = "День";
+    } else if (hour >= 17 && hour < 20) {
+      alpha = 0.15;
+      label = "Закат";
+    } else {
+      alpha = 0.38;
+      label = "Ночь";
+    }
+
+    this.dayNightOverlay.setAlpha(alpha);
+
+    this.timeLabel.setText(
+      `${String(hour).padStart(2, "0")}:00 · ${label}`
+    );
+  }
+
+  // --------------------------------------------------
+  // INTERACTION SYSTEM
+  // --------------------------------------------------
+
+  private updateNearbyInteractable() {
+    if (!this.player || !this.interactionPanel) {
+      return;
+    }
+
+    let nearest: InteractableObject | null = null;
+    let nearestDistance = this.interactionDistance;
+
+    for (const item of this.interactables) {
+      if (
+        item.type === "resource" &&
+        item.state !== "available"
+      ) {
+        continue;
+      }
+
+      const distance = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        item.x,
+        item.y
+      );
+
+      if (distance < nearestDistance) {
+        nearest = item;
+        nearestDistance = distance;
+      }
+    }
+
+    this.nearbyInteractable = nearest;
+
+    if (this.dialogueOpen || this.inventoryOpen) {
+      this.interactionPanel.setVisible(false);
+      this.mobileInteractButton.setVisible(true);
+      this.mobileButtonText.setText("×");
+      this.mobileButtonBackground.setFillStyle(
+        0x795b65,
+        0.96
+      );
+      return;
+    }
+
+    if (!nearest) {
+      this.interactionPanel.setVisible(false);
+      this.mobileInteractButton.setVisible(false);
+      return;
+    }
+
+    let hint = "";
+
+    if (nearest.type === "npc") {
+      hint = `E — поговорить: ${nearest.name}`;
+    } else if (nearest.type === "resource") {
+      hint = `E — собрать: ${nearest.name}`;
+    } else {
+      hint = `E — осмотреть: ${nearest.name}`;
+    }
+
+    this.interactionLabel.setText(hint);
+    this.interactionPanel.setVisible(true);
+    this.mobileInteractButton.setVisible(true);
+
+    this.mobileButtonText.setText("E");
+    this.mobileButtonBackground.setFillStyle(
+      0x5a447e,
+      0.95
+    );
+  }
+
+  private interact() {
+    if (this.dialogueOpen) {
+      this.closeDialogue();
+      return;
+    }
+
+    if (this.inventoryOpen) {
+      this.closeInventory();
+      return;
+    }
+
+    const target = this.nearbyInteractable;
+
+    if (!target || !this.player) {
+      return;
+    }
+
+    const distance = Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      target.x,
+      target.y
+    );
+
+    if (distance > this.interactionDistance) {
+      return;
+    }
+
+    if (target.type === "npc") {
+      this.interactWithNPC(target);
+    } else if (target.type === "camp") {
+      this.interactWithCamp(target);
+    } else if (target.type === "resource") {
+      this.collectResource(target);
+    }
+  }
+
+  private interactWithNPC(target: InteractableObject) {
+    const dialogues = [
+      "Добро пожаловать в Greenhaven! Я Элиан, путешественник. Здесь можно отдохнуть у костра перед дорогой.",
+      "В долине можно найти грибы, ягоды и камни. Исследуй окрестности — полезные вещи встречаются повсюду.",
+      "Не торопись покидать долину. Иногда самые интересные находки находятся совсем рядом.",
+    ];
+
+    const index = target.dialogueIndex ?? 0;
+
+    this.openDialogue(dialogues[index]);
+
+    target.dialogueIndex =
+      (index + 1) % dialogues.length;
+  }
+
+  private interactWithCamp(target: InteractableObject) {
+    let message = "";
+
+    if (target.id === "traveler-camp") {
+      message =
+        "Тёплый костёр. Здесь путешественники отдыхают после долгой дороги. Возможно, однажды ты тоже сможешь восстановить здесь силы.";
+    } else if (target.id === "camp-tent") {
+      message =
+        "Палатка Элиана. Внутри лежат его личные вещи и дорожные принадлежности.";
+    } else {
+      message =
+        "Ящики с припасами путешественников. Пока они принадлежат Элиану, но в будущем здесь можно будет хранить предметы.";
+    }
+
+    this.openDialogue(message, "ЛАГЕРЬ");
+  }
+
+  private openDialogue(
+    message: string,
+    title = "ЭЛИАН"
+  ) {
+    this.dialogueOpen = true;
+
+    this.movementTarget = null;
+    this.hideTargetMarker();
+
+    this.dialogueText.setText(message);
+    this.dialogueTitle.setText(title);
+    this.dialoguePanel.setVisible(true);
+
+    this.interactionPanel.setVisible(false);
+    this.mobileInteractButton.setVisible(true);
+    this.mobileButtonText.setText("×");
+    this.mobileButtonBackground.setFillStyle(
+      0x795b65,
+      0.96
+    );
+  }
+
+  private closeDialogue() {
+    this.dialogueOpen = false;
+    this.dialoguePanel.setVisible(false);
+    this.dialogueTitle.setText("ЭЛИАН");
+    this.updateNearbyInteractable();
+  }
+
+  // --------------------------------------------------
+  // INPUT
+  // --------------------------------------------------
+
+  private setupControls() {
+    this.input.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      this.handlePointerDown,
+      this
+    );
+
+    if (!this.input.keyboard) {
+      return;
+    }
+
+    this.cursors = this.input.keyboard.createCursorKeys();
+
+    this.interactKey = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.E
+    );
+
+    this.inventoryKey = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.I
+    );
+
+    this.escapeKey = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.ESC
+    );
+  }
+
+  private handlePointerDown(pointer: Phaser.Input.Pointer) {
+    if (!this.player) {
+      return;
+    }
+
+    // Сначала проверяем экранную кнопку E / ×.
+    // Это позволяет ей работать и при открытом диалоге.
+    if (
+      this.mobileInteractButton?.visible &&
+      this.mobileInteractButton.getBounds().contains(
+        pointer.x,
+        pointer.y
+      )
+    ) {
+      this.interact();
+      return;
+    }
+
+    if (this.dialogueOpen || this.inventoryOpen) {
+      return;
+    }
+
+    if (
+      this.inventoryPanel?.getBounds().contains(
+        pointer.x,
+        pointer.y
+      )
+    ) {
+      return;
+    }
+
+    if (this.handleMinimapNavigation(pointer)) {
+      return;
+    }
+
+    this.setMovementDestination(
+      pointer.worldX,
+      pointer.worldY
+    );
+  }
+
+  // --------------------------------------------------
+  // CAMERA AND LIFECYCLE
+  // --------------------------------------------------
+
+  private setupCamera() {
+    this.cameras.main.setBounds(
+      0,
+      0,
+      this.worldWidth,
+      this.worldHeight
+    );
+
+    this.cameras.main.startFollow(
+      this.player,
+      true,
+      0.08,
+      0.08
+    );
+
+    this.cameras.main.setDeadzone(80, 60);
+  }
+
+  private setupLifecycle() {
+    this.scale.on(
+      Phaser.Scale.Events.RESIZE,
+      this.handleResize,
+      this
+    );
+
+    this.events.once(
+      Phaser.Scenes.Events.SHUTDOWN,
+      this.handleShutdown,
+      this
+    );
+
+    this.events.once(
+      Phaser.Scenes.Events.DESTROY,
+      this.handleShutdown,
+      this
+    );
+  }
+
+  private handleResize() {
+    this.positionInterface();
+    this.positionMinimap();
+
+    if (this.dayNightOverlay) {
+      this.dayNightOverlay.setSize(
+        this.scale.width,
+        this.scale.height
+      );
+    }
+  }
+
+  private handleShutdown() {
+    this.targetMarkerTween?.stop();
+    this.targetMarkerTween = null;
+
+    this.notificationTween?.stop();
+    this.notificationTween = null;
+
+    for (const tween of this.ambientTweens) {
+      tween.stop();
+    }
+
+    this.ambientTweens.length = 0;
+
+    for (const item of this.interactables) {
+      item.respawnEvent?.remove(false);
+    }
+
+    this.scale.off(
+      Phaser.Scale.Events.RESIZE,
+      this.handleResize,
+      this
+    );
+
+    this.input.off(
+      Phaser.Input.Events.POINTER_DOWN,
+      this.handlePointerDown,
+      this
+    );
+
+    this.inventoryPanel?.off(
+      Phaser.Input.Events.POINTER_DOWN
+    );
+
+    this.tweens.killTweensOf(this.player);
+  }
+
+  // --------------------------------------------------
+  // MAIN UPDATE
+  // --------------------------------------------------
+
+  update(_time: number, delta: number) {
+    if (!this.player) {
+      return;
+    }
+
+    if (
+      this.interactKey &&
+      Phaser.Input.Keyboard.JustDown(this.interactKey)
+    ) {
+      this.interact();
+    }
+
+    if (
+      this.inventoryKey &&
+      Phaser.Input.Keyboard.JustDown(this.inventoryKey)
+    ) {
+      this.toggleInventory();
+    }
+
+    if (
+      this.escapeKey &&
+      Phaser.Input.Keyboard.JustDown(this.escapeKey)
+    ) {
+      if (this.dialogueOpen) {
+        this.closeDialogue();
+      } else if (this.inventoryOpen) {
+        this.closeInventory();
+      }
+    }
+
+    if (this.dialogueOpen || this.inventoryOpen) {
+      this.updateMinimap();
+      return;
+    }
+
+    this.elapsedTime += delta;
+
+    // One in-game day lasts approximately 12 real minutes.
+    this.worldTime =
+      (this.worldTime + delta / 720000) % 1;
+
+    if (this.elapsedTime >= 1000) {
+      this.elapsedTime %= 1000;
+      this.updateDayNight();
+    }
+
+    let movement = this.updateKeyboardMovement();
+
+    if (movement.lengthSq() > 0) {
+      movement.normalize();
+
+      const step =
+        this.playerSpeed * Math.min(delta, 50) / 1000;
+
+      movement.scale(step);
+
+      this.movementTarget = null;
+      this.hideTargetMarker();
+    } else {
+      movement = this.updateTapMovement(delta);
+    }
+
+    const moving = movement.lengthSq() > 0.01;
+
+    this.updatePlayerAnimation(moving);
+
+    if (moving) {
+      this.updatePlayerFacing(movement.x);
+      this.movePlayer(movement.x, movement.y);
+    }
+
+    this.updateNearbyInteractable();
+    this.updateMinimap();
+  }
+}
