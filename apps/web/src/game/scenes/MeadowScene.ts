@@ -6,6 +6,10 @@ export default class MeadowScene extends Phaser.Scene {
   private targetMarker!: Phaser.GameObjects.Graphics;
   private targetMarkerTween: Phaser.Tweens.Tween | null = null;
 
+  private minimap!: Phaser.GameObjects.Container;
+  private minimapPlayerMarker!: Phaser.GameObjects.Arc;
+  private readonly treeLocations: Array<{ x: number; y: number }> = [];
+
   private movementTarget: Phaser.Math.Vector2 | null = null;
 
   private readonly worldWidth = 2400;
@@ -18,6 +22,7 @@ export default class MeadowScene extends Phaser.Scene {
 
   create() {
     this.movementTarget = null;
+    this.treeLocations.length = 0;
 
     this.cameras.main.setBackgroundColor("#142b35");
 
@@ -63,6 +68,8 @@ export default class MeadowScene extends Phaser.Scene {
       if (distanceFromSpawn < 150) {
         continue;
       }
+
+      this.treeLocations.push({ x, y });
 
       this.add.circle(x, y + 10, 12, 0x183b32)
         .setDepth(y);
@@ -190,6 +197,124 @@ export default class MeadowScene extends Phaser.Scene {
     );
 
     this.cameras.main.setDeadzone(80, 60);
+
+    // Minimap
+    this.createMinimap();
+    this.positionMinimap();
+
+    this.scale.on(
+      Phaser.Scale.Events.RESIZE,
+      this.positionMinimap,
+      this
+    );
+
+    this.events.once(
+      Phaser.Scenes.Events.SHUTDOWN,
+      this.handleShutdown,
+      this
+    );
+  }
+
+  private createMinimap() {
+    const panel = this.add.graphics();
+
+    panel.fillStyle(0x101d19, 0.92);
+    panel.fillRect(0, 0, 112, 78);
+
+    panel.lineStyle(1, 0xb89aff, 0.75);
+    panel.strokeRect(0, 0, 112, 78);
+
+    const map = this.add.graphics();
+
+    map.fillStyle(0x294b43, 1);
+    map.fillRect(8, 19, 96, 50);
+
+    map.lineStyle(1, 0x8ba98a, 0.45);
+    map.strokeRect(8, 19, 96, 50);
+
+    // Tree markers
+    map.fillStyle(0x79a76e, 0.9);
+
+    for (const tree of this.treeLocations) {
+      const mapX = 8 + (tree.x / this.worldWidth) * 96;
+      const mapY = 19 + (tree.y / this.worldHeight) * 50;
+
+      map.fillCircle(mapX, mapY, 1.2);
+    }
+
+    // Spawn marker
+    map.fillStyle(0xd8c4ff, 0.9);
+    map.fillCircle(56, 44, 3);
+
+    const title = this.add.text(8, 5, "КАРТА", {
+      fontFamily: "Arial",
+      fontSize: "8px",
+      fontStyle: "bold",
+      color: "#e3d5ff",
+      letterSpacing: 1,
+    });
+
+    this.minimapPlayerMarker = this.add.circle(
+      56,
+      44,
+      3.5,
+      0xffffff
+    );
+
+    this.minimapPlayerMarker.setStrokeStyle(1, 0x7651c7);
+
+    this.minimap = this.add.container(
+      0,
+      0,
+      [
+        panel,
+        map,
+        title,
+        this.minimapPlayerMarker,
+      ]
+    );
+
+    this.minimap.setScrollFactor(0);
+    this.minimap.setDepth(1100);
+  }
+
+  private positionMinimap() {
+    if (!this.minimap) {
+      return;
+    }
+
+    this.minimap.setPosition(
+      Math.max(8, this.scale.width - 120),
+      Math.max(8, this.scale.height - 86)
+    );
+  }
+
+  private updateMinimap() {
+    if (!this.player || !this.minimapPlayerMarker) {
+      return;
+    }
+
+    const mapX = 8 + (this.player.x / this.worldWidth) * 96;
+    const mapY = 19 + (this.player.y / this.worldHeight) * 50;
+
+    this.minimapPlayerMarker.setPosition(mapX, mapY);
+  }
+
+  private handleShutdown() {
+    this.targetMarkerTween?.stop();
+    this.targetMarkerTween = null;
+
+    this.scale.off(
+      Phaser.Scale.Events.RESIZE,
+      this.positionMinimap,
+      this
+    );
+
+    this.input.off(
+      Phaser.Input.Events.POINTER_DOWN,
+      this.handlePointerDown,
+      this
+    );
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
@@ -284,27 +409,27 @@ export default class MeadowScene extends Phaser.Scene {
       this.hideTargetMarker();
     }
 
-    if (direction.lengthSq() === 0) {
-      return;
+    if (direction.lengthSq() > 0) {
+      direction.normalize();
+
+      const movementDistance =
+        this.playerSpeed * Math.min(delta, 50) / 1000;
+
+      this.player.x = Phaser.Math.Clamp(
+        this.player.x + direction.x * movementDistance,
+        20,
+        this.worldWidth - 20
+      );
+
+      this.player.y = Phaser.Math.Clamp(
+        this.player.y + direction.y * movementDistance,
+        20,
+        this.worldHeight - 20
+      );
+
+      this.player.setDepth(this.player.y);
     }
 
-    direction.normalize();
-
-    const movementDistance =
-      this.playerSpeed * Math.min(delta, 50) / 1000;
-
-    this.player.x = Phaser.Math.Clamp(
-      this.player.x + direction.x * movementDistance,
-      20,
-      this.worldWidth - 20
-    );
-
-    this.player.y = Phaser.Math.Clamp(
-      this.player.y + direction.y * movementDistance,
-      20,
-      this.worldHeight - 20
-    );
-
-    this.player.setDepth(this.player.y);
+    this.updateMinimap();
   }
 }
