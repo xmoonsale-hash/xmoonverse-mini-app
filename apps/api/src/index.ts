@@ -12,6 +12,7 @@ type Env = {
 
 const MAX_BODY_SIZE = 16_384;
 const MAX_INIT_DATA_LENGTH = 12_000;
+const TELEGRAM_AUTH_MAX_AGE = 86400;
 
 const app = new Hono<Env>();
 
@@ -178,7 +179,7 @@ app.post("/api/v1/auth/telegram", async (c) => {
     body.initData,
     c.env.TELEGRAM_BOT_TOKEN,
     {
-      maxAgeSeconds: 86400,
+      maxAgeSeconds: TELEGRAM_AUTH_MAX_AGE,
       futureSkewSeconds: 60,
     }
   );
@@ -193,12 +194,63 @@ app.post("/api/v1/auth/telegram", async (c) => {
     );
   }
 
+  const encoder = new TextEncoder();
+
+  const initDataDigest = await crypto.subtle.digest(
+    "SHA-256",
+    encoder.encode(body.initData)
+  );
+
+  const initDataHash = Array.from(
+    new Uint8Array(initDataDigest)
+  )
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+  const now = Math.floor(Date.now() / 1000);
+  const expiresAt = result.authDate + TELEGRAM_AUTH_MAX_AGE;
+
+  try {
+    await c.env.DB.prepare(
+      `DELETE FROM telegram_auth_replays
+       WHERE expires_at <= ?`
+    )
+      .bind(now)
+      .run();
+
+    const replayResult = await c.env.DB.prepare(
+      `INSERT OR IGNORE INTO telegram_auth_replays
+       (init_data_hash, expires_at, created_at)
+       VALUES (?, ?, ?)`
+    )
+      .bind(initDataHash, expiresAt, now)
+      .run();
+
+    if (replayResult.meta.changes !== 1) {
+      return c.json(
+        {
+          success: false,
+          error: "Telegram authentication data has already been used",
+        },
+        409
+      );
+    }
+  } catch {
+    return c.json(
+      {
+        success: false,
+        error: "Authentication storage is unavailable",
+      },
+      503
+    );
+  }
+
   return c.json({
     success: true,
     authenticated: true,
     user: result.user,
     authDate: result.authDate,
-    expiresAt: result.authDate + 86400,
+    expiresAt,
   });
 });
 
