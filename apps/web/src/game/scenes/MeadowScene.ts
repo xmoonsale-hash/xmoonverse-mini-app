@@ -26,7 +26,6 @@ export default class MeadowScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor("#142b35");
 
-    // World ground
     this.add.rectangle(
       this.worldWidth / 2,
       this.worldHeight / 2,
@@ -71,14 +70,9 @@ export default class MeadowScene extends Phaser.Scene {
 
       this.treeLocations.push({ x, y });
 
-      this.add.circle(x, y + 10, 12, 0x183b32)
-        .setDepth(y);
-
-      this.add.circle(x, y, 16, 0x39744b)
-        .setDepth(y + 1);
-
-      this.add.circle(x - 5, y - 5, 7, 0x55935c)
-        .setDepth(y + 2);
+      this.add.circle(x, y + 10, 12, 0x183b32).setDepth(y);
+      this.add.circle(x, y, 16, 0x39744b).setDepth(y + 1);
+      this.add.circle(x - 5, y - 5, 7, 0x55935c).setDepth(y + 2);
     }
 
     // Location label
@@ -97,7 +91,6 @@ export default class MeadowScene extends Phaser.Scene {
       color: "#c5d9c4",
     }).setScrollFactor(0).setDepth(1000);
 
-    // Movement hint
     this.add.text(
       18,
       62,
@@ -174,7 +167,7 @@ export default class MeadowScene extends Phaser.Scene {
       this.cursors = this.input.keyboard.createCursorKeys();
     }
 
-    // Mobile and mouse movement
+    // Mouse, mobile and minimap navigation
     this.input.on(
       Phaser.Input.Events.POINTER_DOWN,
       this.handlePointerDown,
@@ -317,19 +310,19 @@ export default class MeadowScene extends Phaser.Scene {
     );
   }
 
-  private handlePointerDown(pointer: Phaser.Input.Pointer) {
+  private setMovementDestination(x: number, y: number) {
     if (!this.player || !this.targetMarker) {
       return;
     }
 
     const targetX = Phaser.Math.Clamp(
-      pointer.worldX,
+      x,
       20,
       this.worldWidth - 20
     );
 
     const targetY = Phaser.Math.Clamp(
-      pointer.worldY,
+      y,
       20,
       this.worldHeight - 20
     );
@@ -339,7 +332,6 @@ export default class MeadowScene extends Phaser.Scene {
       targetY
     );
 
-    // Show destination marker
     this.targetMarkerTween?.stop();
 
     this.targetMarker
@@ -357,6 +349,58 @@ export default class MeadowScene extends Phaser.Scene {
       repeat: -1,
       ease: "Sine.easeInOut",
     });
+  }
+
+  private handleMinimapNavigation(
+    pointer: Phaser.Input.Pointer
+  ): boolean {
+    if (!this.minimap) {
+      return false;
+    }
+
+    const localX = pointer.x - this.minimap.x;
+    const localY = pointer.y - this.minimap.y;
+
+    const mapLeft = 8;
+    const mapTop = 19;
+    const mapWidth = 96;
+    const mapHeight = 50;
+
+    const insideMap =
+      localX >= mapLeft &&
+      localX <= mapLeft + mapWidth &&
+      localY >= mapTop &&
+      localY <= mapTop + mapHeight;
+
+    if (!insideMap) {
+      return false;
+    }
+
+    const normalizedX = (localX - mapLeft) / mapWidth;
+    const normalizedY = (localY - mapTop) / mapHeight;
+
+    const worldX = normalizedX * this.worldWidth;
+    const worldY = normalizedY * this.worldHeight;
+
+    this.setMovementDestination(worldX, worldY);
+
+    return true;
+  }
+
+  private handlePointerDown(pointer: Phaser.Input.Pointer) {
+    if (!this.player || !this.targetMarker) {
+      return;
+    }
+
+    // Minimap navigation takes priority over world navigation
+    if (this.handleMinimapNavigation(pointer)) {
+      return;
+    }
+
+    this.setMovementDestination(
+      pointer.worldX,
+      pointer.worldY
+    );
   }
 
   private hideTargetMarker() {
@@ -404,7 +448,6 @@ export default class MeadowScene extends Phaser.Scene {
         this.hideTargetMarker();
       }
     } else if (direction.lengthSq() > 0) {
-      // Keyboard input cancels the current destination
       this.movementTarget = null;
       this.hideTargetMarker();
     }
