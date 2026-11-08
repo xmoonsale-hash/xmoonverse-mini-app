@@ -22,9 +22,7 @@ async function readBodyWithLimit(
 ): Promise<string | null> {
   const reader = request.body?.getReader();
 
-  if (!reader) {
-    return "";
-  }
+  if (!reader) return "";
 
   const chunks: Uint8Array[] = [];
   let totalBytes = 0;
@@ -210,21 +208,59 @@ app.post("/api/v1/auth/telegram", async (c) => {
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = result.authDate + TELEGRAM_AUTH_MAX_AGE;
 
-  try {
-    await c.env.DB.prepare(
-      `DELETE FROM telegram_auth_replays
-       WHERE expires_at <= ?`
-    )
-      .bind(now)
-      .run();
+  const telegramUser = result.user;
+  const telegramUserId = String(telegramUser.id);
 
-    const replayResult = await c.env.DB.prepare(
-      `INSERT OR IGNORE INTO telegram_auth_replays
-       (init_data_hash, expires_at, created_at)
-       VALUES (?, ?, ?)`
-    )
-      .bind(initDataHash, expiresAt, now)
-      .run();
+  const username =
+    telegramUser.username ??
+    [telegramUser.first_name, telegramUser.last_name]
+      .filter(Boolean)
+      .join(" ");
+
+  const avatarUrl = telegramUser.photo_url ?? null;
+
+  const playerId = crypto.randomUUID();
+
+  try {
+    const batchResults = await c.env.DB.batch([
+      c.env.DB.prepare(
+        `DELETE FROM telegram_auth_replays
+         WHERE expires_at <= ?`
+      ).bind(now),
+
+      c.env.DB.prepare(
+        `INSERT OR IGNORE INTO telegram_auth_replays
+         (init_data_hash, expires_at, created_at)
+         VALUES (?, ?, ?)`
+      ).bind(initDataHash, expiresAt, now),
+
+      c.env.DB.prepare(
+        `INSERT INTO player_profiles (
+          id,
+          telegram_user_id,
+          username,
+          avatar_url,
+          created_at,
+          updated_at
+        )
+        SELECT ?, ?, ?, ?, ?, ?
+        WHERE changes() = 1
+        ON CONFLICT(telegram_user_id)
+        DO UPDATE SET
+          username = excluded.username,
+          avatar_url = excluded.avatar_url,
+          updated_at = excluded.updated_at`
+      ).bind(
+        playerId,
+        telegramUserId,
+        username,
+        avatarUrl,
+        now,
+        now
+      ),
+    ]);
+
+    const replayResult = batchResults[1];
 
     if (replayResult.meta.changes !== 1) {
       return c.json(
@@ -245,10 +281,41 @@ app.post("/api/v1/auth/telegram", async (c) => {
     );
   }
 
+  let player: {
+    id: string;
+    telegram_user_id: string;
+    username: string;
+    avatar_url: string | null;
+  } | null;
+
+  try {
+    player = await c.env.DB.prepare(
+      `SELECT id, telegram_user_id, username, avatar_url
+       FROM player_profiles
+       WHERE telegram_user_id = ?
+       LIMIT 1`
+    )
+      .bind(telegramUserId)
+      .first();
+
+    if (!player) {
+      throw new Error("Player profile was not found");
+    }
+  } catch {
+    return c.json(
+      {
+        success: false,
+        error: "Unable to load player profile",
+      },
+      503
+    );
+  }
+
   return c.json({
     success: true,
     authenticated: true,
     user: result.user,
+    player,
     authDate: result.authDate,
     expiresAt,
   });
