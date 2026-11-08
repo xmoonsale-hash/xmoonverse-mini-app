@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import GameCanvas from "../game/GameCanvas";
 import {
   applyTelegramTheme,
+  applyTelegramViewport,
   getTelegramEnvironment,
   subscribeTelegramTheme,
+  subscribeTelegramViewport,
 } from "../platform/telegram";
 
 type Tab = "world" | "character" | "inventory" | "quests" | "social";
@@ -24,8 +26,15 @@ export default function App() {
 
   useEffect(() => {
     applyTelegramTheme();
+    applyTelegramViewport();
 
-    return subscribeTelegramTheme();
+    const unsubscribeTheme = subscribeTelegramTheme();
+    const unsubscribeViewport = subscribeTelegramViewport();
+
+    return () => {
+      unsubscribeTheme();
+      unsubscribeViewport();
+    };
   }, []);
 
   return (
