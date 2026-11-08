@@ -44,9 +44,7 @@ export const ITEM_CATALOG: GameItem[] = [
     stackable: false,
     maxStack: 1,
     equipmentSlot: "weapon",
-    stats: {
-      attack: 3
-    }
+    stats: { attack: 3 }
   },
   {
     id: "traveler_armor",
@@ -58,10 +56,7 @@ export const ITEM_CATALOG: GameItem[] = [
     stackable: false,
     maxStack: 1,
     equipmentSlot: "chest",
-    stats: {
-      defense: 2,
-      health: 10
-    }
+    stats: { defense: 2, health: 10 }
   },
   {
     id: "small_health_potion",
@@ -84,11 +79,61 @@ export const ITEM_CATALOG: GameItem[] = [
     maxStack: 999
   },
   {
+    id: "stone",
+    name: "Камень",
+    description: "Базовый материал для изготовления инструментов и экипировки.",
+    type: "material",
+    rarity: "common",
+    requiredLevel: 1,
+    stackable: true,
+    maxStack: 999
+  },
+  {
+    id: "wild_herb",
+    name: "Дикая трава",
+    description: "Растение для приготовления зелий.",
+    type: "material",
+    rarity: "common",
+    requiredLevel: 1,
+    stackable: true,
+    maxStack: 999
+  },
+  {
     id: "iron_ore",
     name: "Железная руда",
     description: "Металлическая руда для кузнечного дела.",
     type: "material",
     rarity: "uncommon",
+    requiredLevel: 1,
+    stackable: true,
+    maxStack: 999
+  },
+  {
+    id: "moon_crystal",
+    name: "Лунный кристалл",
+    description: "Редкий кристалл с необычной энергией.",
+    type: "material",
+    rarity: "rare",
+    requiredLevel: 1,
+    stackable: true,
+    maxStack: 999
+  },
+  {
+    id: "ancient_essence",
+    name: "Древняя эссенция",
+    description: "Мистический материал древнего мира.",
+    type: "material",
+    rarity: "epic",
+    requiredLevel: 1,
+    stackable: true,
+    maxStack: 999
+  },
+  {
+    id: "celestial_core",
+    name: "Небесное ядро",
+    description: "Чрезвычайно редкий источник энергии.",
+    type: "material",
+    rarity: "legendary",
     requiredLevel: 1,
     stackable: true,
     maxStack: 999
@@ -98,25 +143,17 @@ export const ITEM_CATALOG: GameItem[] = [
 export function getItemById(
   itemId: ItemId
 ): GameItem | undefined {
-  return ITEM_CATALOG.find(
-    (item) => item.id === itemId
-  );
+  return ITEM_CATALOG.find((item) => item.id === itemId);
 }
 
-export function getItemsByType(
-  type: ItemType
-): GameItem[] {
-  return ITEM_CATALOG.filter(
-    (item) => item.type === type
-  );
+export function getItemsByType(type: ItemType): GameItem[] {
+  return ITEM_CATALOG.filter((item) => item.type === type);
 }
 
 export function getItemsByRarity(
   rarity: GameItem["rarity"]
 ): GameItem[] {
-  return ITEM_CATALOG.filter(
-    (item) => item.rarity === rarity
-  );
+  return ITEM_CATALOG.filter((item) => item.rarity === rarity);
 }
 
 export function getAllItems(): GameItem[] {
