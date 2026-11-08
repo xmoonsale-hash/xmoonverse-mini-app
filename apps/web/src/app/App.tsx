@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import GameCanvas from "../game/GameCanvas";
 import {
@@ -32,7 +31,7 @@ function getAuthMessage(result: TelegramAuthResult | null): string {
   }
 
   if (result.ok) {
-    return "Аккаунт Telegram подтверждён";
+    return "Профиль игрока загружен";
   }
 
   switch (result.error) {
@@ -129,8 +128,11 @@ export default function App() {
   const authenticatedUser =
     authResult?.ok === true ? authResult.data.user : null;
 
-  const playerLabel = authenticatedUser
-    ? authenticatedUser.first_name
+  const authenticatedPlayer =
+    authResult?.ok === true ? authResult.data.player : null;
+
+  const playerLabel = authenticatedPlayer
+    ? authenticatedPlayer.username || authenticatedUser?.first_name || "Игрок"
     : telegram.isTelegram
       ? "Не авторизован"
       : "Гостевой режим";
@@ -150,7 +152,7 @@ export default function App() {
           <span
             className="online-dot"
             style={{
-              opacity: authenticatedUser ? 1 : 0.45,
+              opacity: authenticatedPlayer ? 1 : 0.45,
             }}
           />
           <span>{playerLabel}</span>
