@@ -44,9 +44,13 @@ body,
   margin: 0;
 }
 
+html {
+  min-height: var(--tg-viewport-stable-height, 100vh);
+}
+
 body {
   min-width: 320px;
-  min-height: 100vh;
+  min-height: var(--tg-viewport-height, 100vh);
   background:
     radial-gradient(ellipse at 50% -20%, #30205a 0%, transparent 55%),
     var(--background);
@@ -54,7 +58,11 @@ body {
 
 :root[data-color-scheme="light"] body {
   background:
-    radial-gradient(ellipse at 50% -20%, rgba(167, 139, 250, 0.12), transparent 55%),
+    radial-gradient(
+      ellipse at 50% -20%,
+      rgba(167, 139, 250, 0.12),
+      transparent 55%
+    ),
     var(--background);
 }
 
@@ -65,9 +73,31 @@ button {
 .app-shell {
   width: 100%;
   max-width: 1100px;
-  min-height: 100vh;
+  min-height: var(--tg-viewport-stable-height, 100vh);
   margin: 0 auto;
-  padding: 18px 20px 110px;
+
+  padding-top: max(
+    18px,
+    env(safe-area-inset-top),
+    var(--safe-area-inset-top, 0px),
+    var(--content-safe-area-inset-top, 0px)
+  );
+
+  padding-right: max(
+    20px,
+    env(safe-area-inset-right),
+    var(--safe-area-inset-right, 0px),
+    var(--content-safe-area-inset-right, 0px)
+  );
+
+  padding-bottom: 110px;
+
+  padding-left: max(
+    20px,
+    env(safe-area-inset-left),
+    var(--safe-area-inset-left, 0px),
+    var(--content-safe-area-inset-left, 0px)
+  );
 }
 
 .topbar {
@@ -207,10 +237,34 @@ button {
   right: 0;
   bottom: 0;
   left: 0;
+
   display: flex;
   justify-content: center;
   gap: 5px;
-  padding: 12px 8px max(12px, env(safe-area-inset-bottom));
+
+  padding-top: 12px;
+
+  padding-right: max(
+    8px,
+    env(safe-area-inset-right),
+    var(--safe-area-inset-right, 0px),
+    var(--content-safe-area-inset-right, 0px)
+  );
+
+  padding-bottom: max(
+    12px,
+    env(safe-area-inset-bottom),
+    var(--safe-area-inset-bottom, 0px),
+    var(--content-safe-area-inset-bottom, 0px)
+  );
+
+  padding-left: max(
+    8px,
+    env(safe-area-inset-left),
+    var(--safe-area-inset-left, 0px),
+    var(--content-safe-area-inset-left, 0px)
+  );
+
   border-top: 1px solid var(--border);
   background: var(--navigation-background);
   backdrop-filter: blur(18px);
@@ -256,7 +310,12 @@ button {
 
 @media (min-width: 768px) {
   .app-shell {
-    padding-top: 28px;
+    padding-top: max(
+      28px,
+      env(safe-area-inset-top),
+      var(--safe-area-inset-top, 0px),
+      var(--content-safe-area-inset-top, 0px)
+    );
   }
 
   .game-header {
@@ -265,7 +324,7 @@ button {
 
   .bottom-navigation {
     right: 50%;
-    bottom: 20px;
+    bottom: max(20px, env(safe-area-inset-bottom));
     left: auto;
     width: min(600px, calc(100% - 32px));
     transform: translateX(50%);
