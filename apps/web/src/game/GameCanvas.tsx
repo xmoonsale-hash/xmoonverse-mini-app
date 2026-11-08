@@ -16,17 +16,27 @@ export default function GameCanvas() {
       type: Phaser.AUTO,
       parent: container,
       backgroundColor: "#101026",
+
       scale: {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: 900,
-        height: 520
+        height: 520,
       },
+
+      input: {
+        activePointers: 3,
+      },
+
+      disableContextMenu: true,
+
       scene: [MeadowScene],
+
       render: {
         antialias: false,
-        pixelArt: true
-      }
+        pixelArt: true,
+        roundPixels: true,
+      },
     });
 
     return () => {
@@ -45,7 +55,11 @@ export default function GameCanvas() {
         overflow: "hidden",
         border: "1px solid rgba(196, 167, 255, 0.2)",
         borderRadius: "20px",
-        background: "#101026"
+        background: "#101026",
+        touchAction: "none",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        WebkitTouchCallout: "none",
       }}
     />
   );
