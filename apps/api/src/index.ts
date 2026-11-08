@@ -1,6 +1,6 @@
 
 import { Hono } from "hono";
-import { verifyTelegramInitData } from "./auth/telegram";
+import { verifyTelegramInitData } from "../auth/telegram";
 
 type Env = {
   Bindings: {
