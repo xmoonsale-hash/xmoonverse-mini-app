@@ -1,9 +1,10 @@
+
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 :root {
   font-family: "Inter", sans-serif;
-  color: #f5f2ff;
-  background: #090817;
+  color: var(--text, #f5f2ff);
+  background: var(--background, #090817);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -12,10 +13,23 @@
   --background: #090817;
   --panel: #151226;
   --panel-light: #201a38;
+  --text: #f5f2ff;
   --accent: #a78bfa;
   --accent-bright: #c4a7ff;
   --muted: #9b93b5;
+  --button-text: #ffffff;
+  --navigation-background: rgba(12, 10, 27, 0.94);
   --border: rgba(196, 167, 255, 0.15);
+}
+
+:root[data-color-scheme="light"] {
+  --background: #f5f4fa;
+  --panel: #ffffff;
+  --panel-light: #eeebf7;
+  --text: #211b32;
+  --muted: #756d87;
+  --border: rgba(65, 48, 100, 0.14);
+  --navigation-background: rgba(255, 255, 255, 0.94);
 }
 
 * {
@@ -35,6 +49,12 @@ body {
   min-height: 100vh;
   background:
     radial-gradient(ellipse at 50% -20%, #30205a 0%, transparent 55%),
+    var(--background);
+}
+
+:root[data-color-scheme="light"] body {
+  background:
+    radial-gradient(ellipse at 50% -20%, rgba(167, 139, 250, 0.12), transparent 55%),
     var(--background);
 }
 
@@ -74,6 +94,7 @@ button {
   background: linear-gradient(145deg, #7651c7, #28194d);
   box-shadow: 0 0 24px rgba(167, 139, 250, 0.2);
   font-size: 23px;
+  color: #ffffff;
 }
 
 .brand strong,
@@ -97,7 +118,7 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #c9c1df;
+  color: var(--text);
   font-size: 12px;
 }
 
@@ -123,6 +144,7 @@ button {
 
 .game-header h1 {
   margin: 0;
+  color: var(--text);
   font-size: clamp(25px, 5vw, 38px);
   font-weight: 800;
   letter-spacing: -1.2px;
@@ -134,6 +156,16 @@ button {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.environment-status {
+  display: inline-flex;
+  margin-top: 14px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 10px;
 }
 
 .game-content {
@@ -150,6 +182,7 @@ button {
   border: 1px solid var(--border);
   border-radius: 22px;
   background: linear-gradient(145deg, var(--panel-light), var(--panel));
+  color: var(--text);
   text-align: center;
 }
 
@@ -179,7 +212,7 @@ button {
   gap: 5px;
   padding: 12px 8px max(12px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
-  background: rgba(12, 10, 27, 0.94);
+  background: var(--navigation-background);
   backdrop-filter: blur(18px);
 }
 
@@ -203,6 +236,10 @@ button {
   border-color: var(--border);
   background: rgba(167, 139, 250, 0.12);
   color: var(--accent-bright);
+}
+
+:root[data-color-scheme="light"] .nav-item.active {
+  background: rgba(120, 83, 190, 0.1);
 }
 
 .nav-icon {
