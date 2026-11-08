@@ -1,4 +1,3 @@
-
 import { getTelegramWebApp } from "./telegram";
 
 export type AuthenticatedTelegramUser = {
@@ -11,10 +10,18 @@ export type AuthenticatedTelegramUser = {
   is_premium?: boolean;
 };
 
+export type AuthenticatedPlayer = {
+  id: string;
+  telegram_user_id: string;
+  username: string;
+  avatar_url: string | null;
+};
+
 export type TelegramAuthResponse = {
   success: true;
   authenticated: true;
   user: AuthenticatedTelegramUser;
+  player: AuthenticatedPlayer;
   authDate: number;
   expiresAt: number;
 };
@@ -39,6 +46,28 @@ export type TelegramAuthResult =
     };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "");
+
+function isAuthenticatedPlayer(
+  value: unknown
+): value is AuthenticatedPlayer {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const player = value as Record<string, unknown>;
+
+  return (
+    typeof player.id === "string" &&
+    player.id.length > 0 &&
+    typeof player.telegram_user_id === "string" &&
+    player.telegram_user_id.length > 0 &&
+    typeof player.username === "string" &&
+    (
+      player.avatar_url === null ||
+      typeof player.avatar_url === "string"
+    )
+  );
+}
 
 export async function authenticateTelegram(): Promise<TelegramAuthResult> {
   const webApp = getTelegramWebApp();
@@ -99,6 +128,8 @@ export async function authenticateTelegram(): Promise<TelegramAuthResult> {
     typeof data.user.id !== "number" ||
     !("first_name" in data.user) ||
     typeof data.user.first_name !== "string" ||
+    !("player" in data) ||
+    !isAuthenticatedPlayer(data.player) ||
     !("authDate" in data) ||
     typeof data.authDate !== "number" ||
     !("expiresAt" in data) ||
