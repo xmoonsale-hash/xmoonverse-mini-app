@@ -81,6 +81,12 @@ async function hmacSha256(
   return new Uint8Array(signature);
 }
 
+function isOptionalString(
+  value: unknown
+): boolean {
+  return value === undefined || typeof value === "string";
+}
+
 function isTelegramAuthUser(
   value: unknown
 ): value is TelegramAuthUser {
@@ -95,7 +101,15 @@ function isTelegramAuthUser(
     Number.isSafeInteger(user.id) &&
     user.id > 0 &&
     typeof user.first_name === "string" &&
-    user.first_name.length > 0
+    user.first_name.length > 0 &&
+    isOptionalString(user.last_name) &&
+    isOptionalString(user.username) &&
+    isOptionalString(user.language_code) &&
+    isOptionalString(user.photo_url) &&
+    (
+      user.is_premium === undefined ||
+      typeof user.is_premium === "boolean"
+    )
   );
 }
 
@@ -130,7 +144,6 @@ export async function verifyTelegramInitData(
 
   const params = new URLSearchParams(initData);
   const entries = Array.from(params.entries());
-
   const seenKeys = new Set<string>();
 
   for (const [key] of entries) {
@@ -194,9 +207,11 @@ export async function verifyTelegramInitData(
     .map(([key, value]) => `${key}=${value}`)
     .join("\n");
 
+  // Telegram WebApp signature algorithm:
+  // secret_key = HMAC_SHA256("WebAppData", bot_token)
   const secretKey = await hmacSha256(
-    encoder.encode(botToken),
-    "WebAppData"
+    encoder.encode("WebAppData"),
+    botToken
   );
 
   const calculatedHash = await hmacSha256(
