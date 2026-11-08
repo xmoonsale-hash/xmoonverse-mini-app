@@ -1,0 +1,12 @@
+name = "xmoonverse-rpg-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-08"
+
+workers_dev = true
+
+[observability]
+enabled = true
+
+[vars]
+ENVIRONMENT = "development"
+GAME_NAME = "xMoonVerse RPG"
