@@ -10,7 +10,55 @@ type Env = {
   };
 };
 
+const MAX_BODY_SIZE = 16_384;
+const MAX_INIT_DATA_LENGTH = 12_000;
+
 const app = new Hono<Env>();
+
+async function readBodyWithLimit(
+  request: Request,
+  maxBytes: number
+): Promise<string | null> {
+  const reader = request.body?.getReader();
+
+  if (!reader) {
+    return "";
+  }
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      totalBytes += value.byteLength;
+
+      if (totalBytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const combined = new Uint8Array(totalBytes);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return new TextDecoder().decode(combined);
+}
 
 app.get("/", (c) => {
   return c.json({
@@ -51,10 +99,32 @@ app.post("/api/v1/auth/telegram", async (c) => {
     );
   }
 
-  let rawBody: string;
+  const contentLength = c.req.header("Content-Length");
+
+  if (contentLength !== undefined) {
+    const declaredSize = Number(contentLength);
+
+    if (
+      Number.isFinite(declaredSize) &&
+      declaredSize > MAX_BODY_SIZE
+    ) {
+      return c.json(
+        {
+          success: false,
+          error: "Request body is too large",
+        },
+        413
+      );
+    }
+  }
+
+  let rawBody: string | null;
 
   try {
-    rawBody = await c.req.text();
+    rawBody = await readBodyWithLimit(
+      c.req.raw,
+      MAX_BODY_SIZE
+    );
   } catch {
     return c.json(
       {
@@ -65,9 +135,7 @@ app.post("/api/v1/auth/telegram", async (c) => {
     );
   }
 
-  const bodySize = new TextEncoder().encode(rawBody).byteLength;
-
-  if (bodySize > 16384) {
+  if (rawBody === null) {
     return c.json(
       {
         success: false,
@@ -97,7 +165,7 @@ app.post("/api/v1/auth/telegram", async (c) => {
     !("initData" in body) ||
     typeof body.initData !== "string" ||
     body.initData.length === 0 ||
-    body.initData.length > 12000
+    body.initData.length > MAX_INIT_DATA_LENGTH
   ) {
     return c.json(
       {
