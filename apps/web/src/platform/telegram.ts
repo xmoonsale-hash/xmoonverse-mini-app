@@ -33,6 +33,14 @@ export type TelegramEventType =
   | "safeAreaChanged"
   | "contentSafeAreaChanged";
 
+export type TelegramBackButton = {
+  isVisible: boolean;
+  show: () => void;
+  hide: () => void;
+  onClick: (callback: () => void) => void;
+  offClick: (callback: () => void) => void;
+};
+
 export type TelegramWebApp = {
   ready: () => void;
   expand: () => void;
@@ -48,6 +56,7 @@ export type TelegramWebApp = {
   initData: string;
   initDataUnsafe: Record<string, unknown>;
   themeParams: TelegramThemeParams;
+  BackButton?: TelegramBackButton;
   hapticFeedback?: {
     impactOccurred: (style: TelegramHapticStyle) => void;
     notificationOccurred: (
@@ -123,6 +132,36 @@ export function triggerTelegramSelection(): void {
   const webApp = getTelegramWebApp();
 
   webApp?.hapticFeedback?.selectionChanged();
+}
+
+export function setTelegramBackButtonVisible(visible: boolean): void {
+  const backButton = getTelegramWebApp()?.BackButton;
+
+  if (!backButton) {
+    return;
+  }
+
+  if (visible) {
+    backButton.show();
+  } else {
+    backButton.hide();
+  }
+}
+
+export function subscribeTelegramBackButton(
+  callback: () => void
+): () => void {
+  const backButton = getTelegramWebApp()?.BackButton;
+
+  if (!backButton) {
+    return () => {};
+  }
+
+  backButton.onClick(callback);
+
+  return () => {
+    backButton.offClick(callback);
+  };
 }
 
 function setCssVariable(name: string, value: string | number): void {
