@@ -1,4 +1,3 @@
-
 import { Hono } from "hono";
 import { verifyTelegramInitData } from "../auth/telegram";
 
@@ -7,6 +6,7 @@ type Env = {
     ENVIRONMENT: string;
     GAME_NAME: string;
     TELEGRAM_BOT_TOKEN?: string;
+    DB: D1Database;
   };
 };
 
@@ -32,9 +32,7 @@ async function readBodyWithLimit(
     while (true) {
       const { done, value } = await reader.read();
 
-      if (done) {
-        break;
-      }
+      if (done) break;
 
       totalBytes += value.byteLength;
 
