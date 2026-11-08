@@ -116,6 +116,78 @@ export const QUEST_CATALOG: QuestDefinition[] = [
         }
       ]
     }
+  },
+  {
+    id: "daily_hunt",
+    name: "Ежедневная охота",
+    description: "Победи пять любых лесных слизней.",
+    type: "daily",
+    requiredLevel: 1,
+    objectives: [
+      {
+        id: "daily_defeat_slimes",
+        type: "defeat_monsters",
+        targetId: "forest_slime",
+        requiredAmount: 5
+      }
+    ],
+    rewards: {
+      experience: 75,
+      items: [
+        {
+          itemId: "small_health_potion",
+          quantity: 2
+        }
+      ]
+    }
+  },
+  {
+    id: "daily_gathering",
+    name: "Запасы путешественника",
+    description: "Собери 20 единиц древесины.",
+    type: "daily",
+    requiredLevel: 1,
+    objectives: [
+      {
+        id: "daily_collect_wood",
+        type: "collect_resources",
+        targetId: "wood",
+        requiredAmount: 20
+      }
+    ],
+    rewards: {
+      experience: 60,
+      items: [
+        {
+          itemId: "wood",
+          quantity: 10
+        }
+      ]
+    }
+  },
+  {
+    id: "daily_crafting",
+    name: "Работа мастера",
+    description: "Создай один любой деревянный меч.",
+    type: "daily",
+    requiredLevel: 1,
+    objectives: [
+      {
+        id: "daily_craft_sword",
+        type: "craft_items",
+        targetId: "wooden_sword",
+        requiredAmount: 1
+      }
+    ],
+    rewards: {
+      experience: 100,
+      items: [
+        {
+          itemId: "iron_ore",
+          quantity: 2
+        }
+      ]
+    }
   }
 ];
 
