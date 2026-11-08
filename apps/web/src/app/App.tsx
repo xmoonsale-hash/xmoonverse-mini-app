@@ -11,6 +11,10 @@ import {
   subscribeTelegramViewport,
   triggerTelegramSelection,
 } from "../platform/telegram";
+import {
+  authenticateTelegram,
+  type TelegramAuthResult,
+} from "../platform/auth";
 
 type Tab = "world" | "character" | "inventory" | "quests" | "social";
 
@@ -22,8 +26,39 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: "social", label: "Сообщество", icon: "👥" },
 ];
 
+function getAuthMessage(result: TelegramAuthResult | null): string {
+  if (!result) {
+    return "Проверка авторизации...";
+  }
+
+  if (result.ok) {
+    return "Аккаунт Telegram подтверждён";
+  }
+
+  switch (result.error) {
+    case "not_in_telegram":
+      return "Откройте приложение через Telegram";
+    case "missing_init_data":
+      return "Telegram не предоставил данные авторизации";
+    case "api_not_configured":
+      return "Ожидается подключение API";
+    case "network_error":
+      return "Не удалось связаться с сервером";
+    case "authentication_failed":
+      return result.status
+        ? `Ошибка авторизации · ${result.status}`
+        : "Ошибка авторизации";
+    case "invalid_response":
+      return "Сервер вернул некорректный ответ";
+    default:
+      return "Статус авторизации неизвестен";
+  }
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("world");
+  const [authResult, setAuthResult] =
+    useState<TelegramAuthResult | null>(null);
 
   const telegram = getTelegramEnvironment();
 
@@ -39,6 +74,25 @@ export default function App() {
       unsubscribeViewport();
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!telegram.isTelegram) {
+      setAuthResult(null);
+      return;
+    }
+
+    authenticateTelegram().then((result) => {
+      if (!cancelled) {
+        setAuthResult(result);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [telegram.isTelegram]);
 
   useEffect(() => {
     const unsubscribeBackButton = subscribeTelegramBackButton(() => {
@@ -72,6 +126,15 @@ export default function App() {
     setActiveTab(tab);
   };
 
+  const authenticatedUser =
+    authResult?.ok === true ? authResult.data.user : null;
+
+  const playerLabel = authenticatedUser
+    ? authenticatedUser.first_name
+    : telegram.isTelegram
+      ? "Не авторизован"
+      : "Гостевой режим";
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -84,8 +147,13 @@ export default function App() {
         </div>
 
         <div className="player-status">
-          <span className="online-dot" />
-          <span>Игрок</span>
+          <span
+            className="online-dot"
+            style={{
+              opacity: authenticatedUser ? 1 : 0.45,
+            }}
+          />
+          <span>{playerLabel}</span>
         </div>
       </header>
 
@@ -101,6 +169,12 @@ export default function App() {
             {telegram.isTelegram
               ? `Telegram · ${telegram.platform} · ${telegram.version}`
               : "Browser mode"}
+          </div>
+
+          <div className="environment-status">
+            {telegram.isTelegram
+              ? getAuthMessage(authResult)
+              : "Авторизация Telegram будет доступна при запуске через бота"}
           </div>
         </div>
       </section>
