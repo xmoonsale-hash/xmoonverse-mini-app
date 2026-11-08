@@ -51,11 +51,23 @@ app.post("/api/v1/auth/telegram", async (c) => {
     );
   }
 
-  const contentLength = Number(
-    c.req.header("content-length") ?? 0
-  );
+  let rawBody: string;
 
-  if (contentLength > 16384) {
+  try {
+    rawBody = await c.req.text();
+  } catch {
+    return c.json(
+      {
+        success: false,
+        error: "Unable to read request body",
+      },
+      400
+    );
+  }
+
+  const bodySize = new TextEncoder().encode(rawBody).byteLength;
+
+  if (bodySize > 16384) {
     return c.json(
       {
         success: false,
@@ -65,10 +77,10 @@ app.post("/api/v1/auth/telegram", async (c) => {
     );
   }
 
-  let body: { initData?: unknown } | null;
+  let body: unknown;
 
   try {
-    body = await c.req.json<{ initData?: unknown }>();
+    body = JSON.parse(rawBody);
   } catch {
     return c.json(
       {
@@ -80,7 +92,9 @@ app.post("/api/v1/auth/telegram", async (c) => {
   }
 
   if (
-    !body ||
+    typeof body !== "object" ||
+    body === null ||
+    !("initData" in body) ||
     typeof body.initData !== "string" ||
     body.initData.length === 0 ||
     body.initData.length > 12000
