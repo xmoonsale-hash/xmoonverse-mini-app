@@ -1,5 +1,7 @@
+
 import { useState } from "react";
 import GameCanvas from "../game/GameCanvas";
+import { getTelegramEnvironment } from "../platform/telegram";
 
 type Tab = "world" | "character" | "inventory" | "quests" | "social";
 
@@ -13,6 +15,8 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("world");
+
+  const telegram = getTelegramEnvironment();
 
   return (
     <main className="app-shell">
@@ -38,6 +42,12 @@ export default function App() {
           <p className="subtitle">
             Исследуй мир, развивай персонажа и создавай собственную историю.
           </p>
+
+          <div className="environment-status">
+            {telegram.isTelegram
+              ? `Telegram · ${telegram.platform} · ${telegram.version}`
+              : "Browser mode"}
+          </div>
         </div>
       </section>
 
