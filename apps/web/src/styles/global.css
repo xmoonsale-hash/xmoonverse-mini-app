@@ -1,0 +1,238 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+  font-family: "Inter", sans-serif;
+  color: #f5f2ff;
+  background: #090817;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --background: #090817;
+  --panel: #151226;
+  --panel-light: #201a38;
+  --accent: #a78bfa;
+  --accent-bright: #c4a7ff;
+  --muted: #9b93b5;
+  --border: rgba(196, 167, 255, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 50% -20%, #30205a 0%, transparent 55%),
+    var(--background);
+}
+
+button {
+  font: inherit;
+}
+
+.app-shell {
+  width: 100%;
+  max-width: 1100px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 18px 20px 110px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.brand-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(196, 167, 255, 0.4);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #7651c7, #28194d);
+  box-shadow: 0 0 24px rgba(167, 139, 250, 0.2);
+  font-size: 23px;
+}
+
+.brand strong,
+.brand small {
+  display: block;
+}
+
+.brand strong {
+  font-size: 16px;
+  letter-spacing: 0.3px;
+}
+
+.brand small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 2px;
+}
+
+.player-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #c9c1df;
+  font-size: 12px;
+}
+
+.online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #62e6a2;
+  box-shadow: 0 0 10px rgba(98, 230, 162, 0.6);
+}
+
+.game-header {
+  padding: 32px 0 24px;
+}
+
+.eyebrow {
+  margin: 0 0 9px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.2px;
+}
+
+.game-header h1 {
+  margin: 0;
+  font-size: clamp(25px, 5vw, 38px);
+  font-weight: 800;
+  letter-spacing: -1.2px;
+}
+
+.subtitle {
+  max-width: 540px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.game-content {
+  width: 100%;
+}
+
+.placeholder-panel {
+  display: flex;
+  min-height: 300px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: linear-gradient(145deg, var(--panel-light), var(--panel));
+  text-align: center;
+}
+
+.placeholder-icon {
+  font-size: 38px;
+}
+
+.placeholder-panel h2 {
+  margin: 15px 0 7px;
+}
+
+.placeholder-panel p {
+  max-width: 300px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.bottom-navigation {
+  position: fixed;
+  z-index: 10;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  padding: 12px 8px max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: rgba(12, 10, 27, 0.94);
+  backdrop-filter: blur(18px);
+}
+
+.nav-item {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  max-width: 130px;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 3px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.nav-item.active {
+  border-color: var(--border);
+  background: rgba(167, 139, 250, 0.12);
+  color: var(--accent-bright);
+}
+
+.nav-icon {
+  font-size: 19px;
+}
+
+.nav-label {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .app-shell {
+    padding-top: 28px;
+  }
+
+  .game-header {
+    padding-top: 48px;
+  }
+
+  .bottom-navigation {
+    right: 50%;
+    bottom: 20px;
+    left: auto;
+    width: min(600px, calc(100% - 32px));
+    transform: translateX(50%);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+  }
+}
