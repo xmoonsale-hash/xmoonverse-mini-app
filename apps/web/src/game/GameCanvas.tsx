@@ -51,19 +51,6 @@ export default function GameCanvas() {
   const [isPortrait, setIsPortrait] = useState(false);
   const [contextLost, setContextLost] = useState(false);
 
-  const updateFullscreenState = useCallback(() => {
-    const container = containerRef.current;
-
-    if (!container) return;
-
-    const nativeFullscreen =
-      document.fullscreenElement === container;
-
-    setIsFullscreen(
-      nativeFullscreen || fallbackFullscreenRef.current
-    );
-  }, []);
-
   const toggleFullscreen = useCallback(async () => {
     const container = containerRef.current;
 
