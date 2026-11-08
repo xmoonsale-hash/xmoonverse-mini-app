@@ -10,3 +10,8 @@ enabled = true
 [vars]
 ENVIRONMENT = "development"
 GAME_NAME = "xMoonVerse RPG"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "xmoonverse-rpg-db"
+database_id = "6db9f5be-609d-46b1-ac46-161c91b52e00"
