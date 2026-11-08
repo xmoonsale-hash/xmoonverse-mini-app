@@ -8,6 +8,13 @@ export type TelegramInsets = {
   left: number;
 };
 
+export type TelegramHapticStyle =
+  | "light"
+  | "medium"
+  | "heavy"
+  | "rigid"
+  | "soft";
+
 export type TelegramThemeParams = {
   bg_color?: string;
   secondary_bg_color?: string;
@@ -41,6 +48,13 @@ export type TelegramWebApp = {
   initData: string;
   initDataUnsafe: Record<string, unknown>;
   themeParams: TelegramThemeParams;
+  hapticFeedback?: {
+    impactOccurred: (style: TelegramHapticStyle) => void;
+    notificationOccurred: (
+      type: "error" | "success" | "warning"
+    ) => void;
+    selectionChanged: () => void;
+  };
   onEvent: (eventType: TelegramEventType, callback: () => void) => void;
   offEvent: (eventType: TelegramEventType, callback: () => void) => void;
 };
@@ -95,6 +109,20 @@ export function getTelegramEnvironment(): TelegramEnvironment {
     isFullscreen: webApp.isFullscreen ?? false,
     themeParams: webApp.themeParams ?? {},
   };
+}
+
+export function triggerTelegramHaptic(
+  style: TelegramHapticStyle = "light"
+): void {
+  const webApp = getTelegramWebApp();
+
+  webApp?.hapticFeedback?.impactOccurred(style);
+}
+
+export function triggerTelegramSelection(): void {
+  const webApp = getTelegramWebApp();
+
+  webApp?.hapticFeedback?.selectionChanged();
 }
 
 function setCssVariable(name: string, value: string | number): void {
