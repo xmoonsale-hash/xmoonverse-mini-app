@@ -1,6 +1,18 @@
 
 export type TelegramColorScheme = "light" | "dark";
 
+export type TelegramThemeParams = {
+  bg_color?: string;
+  secondary_bg_color?: string;
+  text_color?: string;
+  hint_color?: string;
+  link_color?: string;
+  button_color?: string;
+  button_text_color?: string;
+  header_bg_color?: string;
+  bottom_bar_bg_color?: string;
+};
+
 export type TelegramWebApp = {
   ready: () => void;
   expand: () => void;
@@ -11,7 +23,9 @@ export type TelegramWebApp = {
   isFullscreen?: boolean;
   initData: string;
   initDataUnsafe: Record<string, unknown>;
-  themeParams: Record<string, string>;
+  themeParams: TelegramThemeParams;
+  onEvent: (eventType: "themeChanged", callback: () => void) => void;
+  offEvent: (eventType: "themeChanged", callback: () => void) => void;
 };
 
 declare global {
@@ -29,7 +43,7 @@ export type TelegramEnvironment = {
   colorScheme: TelegramColorScheme;
   isExpanded: boolean;
   isFullscreen: boolean;
-  themeParams: Record<string, string>;
+  themeParams: TelegramThemeParams;
 };
 
 export function getTelegramWebApp(): TelegramWebApp | null {
@@ -63,6 +77,56 @@ export function getTelegramEnvironment(): TelegramEnvironment {
     isExpanded: webApp.isExpanded,
     isFullscreen: webApp.isFullscreen ?? false,
     themeParams: webApp.themeParams ?? {},
+  };
+}
+
+export function applyTelegramTheme(): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const environment = getTelegramEnvironment();
+  const root = document.documentElement;
+  const theme = environment.themeParams;
+
+  root.dataset.colorScheme = environment.colorScheme;
+
+  const colors: Record<string, string | undefined> = {
+    "--background": theme.bg_color,
+    "--panel": theme.secondary_bg_color,
+    "--panel-light": theme.header_bg_color,
+    "--text": theme.text_color,
+    "--muted": theme.hint_color,
+    "--accent": theme.link_color,
+    "--accent-bright": theme.button_color,
+    "--button-text": theme.button_text_color,
+    "--navigation-background": theme.bottom_bar_bg_color,
+  };
+
+  Object.entries(colors).forEach(([property, value]) => {
+    if (value) {
+      root.style.setProperty(property, value);
+    } else {
+      root.style.removeProperty(property);
+    }
+  });
+}
+
+export function subscribeTelegramTheme(): () => void {
+  const webApp = getTelegramWebApp();
+
+  if (!webApp) {
+    return () => {};
+  }
+
+  const handleThemeChanged = () => {
+    applyTelegramTheme();
+  };
+
+  webApp.onEvent("themeChanged", handleThemeChanged);
+
+  return () => {
+    webApp.offEvent("themeChanged", handleThemeChanged);
   };
 }
 
