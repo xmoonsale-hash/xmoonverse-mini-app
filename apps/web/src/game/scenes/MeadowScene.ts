@@ -3,6 +3,9 @@ import Phaser from "phaser";
 export default class MeadowScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Container;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private targetMarker!: Phaser.GameObjects.Graphics;
+  private targetMarkerTween: Phaser.Tweens.Tween | null = null;
+
   private movementTarget: Phaser.Math.Vector2 | null = null;
 
   private readonly worldWidth = 2400;
@@ -50,7 +53,6 @@ export default class MeadowScene extends Phaser.Scene {
       const x = Phaser.Math.Between(50, this.worldWidth - 50);
       const y = Phaser.Math.Between(70, this.worldHeight - 50);
 
-      // Keep the starting area clear
       const distanceFromSpawn = Phaser.Math.Distance.Between(
         x,
         y,
@@ -150,6 +152,16 @@ export default class MeadowScene extends Phaser.Scene {
 
     this.player.setDepth(this.player.y);
 
+    // Destination marker
+    this.targetMarker = this.add.graphics();
+    this.targetMarker.lineStyle(2, 0xd8c4ff, 0.95);
+    this.targetMarker.strokeCircle(0, 0, 15);
+    this.targetMarker.lineStyle(1, 0xb89aff, 0.75);
+    this.targetMarker.strokeCircle(0, 0, 8);
+    this.targetMarker.fillStyle(0xd8c4ff, 0.9);
+    this.targetMarker.fillCircle(0, 0, 2.5);
+    this.targetMarker.setVisible(false);
+
     // Keyboard controls
     if (this.input.keyboard) {
       this.cursors = this.input.keyboard.createCursorKeys();
@@ -162,7 +174,7 @@ export default class MeadowScene extends Phaser.Scene {
       this
     );
 
-    // Camera follows the player
+    // Camera
     this.cameras.main.setBounds(
       0,
       0,
@@ -181,7 +193,7 @@ export default class MeadowScene extends Phaser.Scene {
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
-    if (!this.player) {
+    if (!this.player || !this.targetMarker) {
       return;
     }
 
@@ -201,6 +213,34 @@ export default class MeadowScene extends Phaser.Scene {
       targetX,
       targetY
     );
+
+    // Show destination marker
+    this.targetMarkerTween?.stop();
+
+    this.targetMarker
+      .setPosition(targetX, targetY)
+      .setDepth(targetY - 1)
+      .setScale(1)
+      .setAlpha(1)
+      .setVisible(true);
+
+    this.targetMarkerTween = this.tweens.add({
+      targets: this.targetMarker,
+      scale: 1.18,
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+  }
+
+  private hideTargetMarker() {
+    this.targetMarkerTween?.stop();
+    this.targetMarkerTween = null;
+
+    if (this.targetMarker) {
+      this.targetMarker.setVisible(false);
+    }
   }
 
   update(_time: number, delta: number) {
@@ -236,10 +276,12 @@ export default class MeadowScene extends Phaser.Scene {
 
         this.movementTarget = null;
         direction.set(0, 0);
+        this.hideTargetMarker();
       }
     } else if (direction.lengthSq() > 0) {
       // Keyboard input cancels the current destination
       this.movementTarget = null;
+      this.hideTargetMarker();
     }
 
     if (direction.lengthSq() === 0) {
