@@ -5,6 +5,8 @@ import {
   applyTelegramTheme,
   applyTelegramViewport,
   getTelegramEnvironment,
+  setTelegramBackButtonVisible,
+  subscribeTelegramBackButton,
   subscribeTelegramTheme,
   subscribeTelegramViewport,
   triggerTelegramSelection,
@@ -37,6 +39,29 @@ export default function App() {
       unsubscribeViewport();
     };
   }, []);
+
+  useEffect(() => {
+    const unsubscribeBackButton = subscribeTelegramBackButton(() => {
+      setActiveTab((currentTab) => {
+        if (currentTab === "world") {
+          return currentTab;
+        }
+
+        triggerTelegramSelection();
+        return "world";
+      });
+    });
+
+    return unsubscribeBackButton;
+  }, []);
+
+  useEffect(() => {
+    setTelegramBackButtonVisible(activeTab !== "world");
+
+    return () => {
+      setTelegramBackButtonVisible(false);
+    };
+  }, [activeTab]);
 
   const handleTabChange = (tab: Tab) => {
     if (activeTab === tab) {
