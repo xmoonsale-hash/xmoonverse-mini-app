@@ -137,6 +137,26 @@ export const ITEM_CATALOG: GameItem[] = [
     requiredLevel: 1,
     stackable: true,
     maxStack: 999
+  },
+  {
+    id: "raw_fish",
+    name: "Сырая рыба",
+    description: "Обычная рыба, пойманная в водоёмах игрового мира.",
+    type: "material",
+    rarity: "common",
+    requiredLevel: 1,
+    stackable: true,
+    maxStack: 999
+  },
+  {
+    id: "rare_fish",
+    name: "Редкая рыба",
+    description: "Редкий улов, который может использоваться в особых рецептах.",
+    type: "material",
+    rarity: "rare",
+    requiredLevel: 1,
+    stackable: true,
+    maxStack: 999
   }
 ];
 
