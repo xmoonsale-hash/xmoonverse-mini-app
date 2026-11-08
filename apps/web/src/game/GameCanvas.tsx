@@ -235,10 +235,7 @@ export default function GameCanvas() {
         setIsFullscreen(false);
       }
 
-      if (
-        event.key === "Escape" &&
-        showSettings
-      ) {
+      if (event.key === "Escape") {
         setShowSettings(false);
       }
     };
@@ -468,6 +465,7 @@ export default function GameCanvas() {
 
       gameRef.current = null;
     };
+
     // Game is intentionally initialized only once per component mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -558,6 +556,7 @@ export default function GameCanvas() {
       {/* Error screen */}
       {loadingError && !contextLost && (
         <div
+          data-game-control
           role="alert"
           style={{
             position: "absolute",
@@ -572,6 +571,7 @@ export default function GameCanvas() {
             background: "rgba(16,16,38,0.96)",
             color: COLORS.text,
             textAlign: "center",
+            pointerEvents: "auto",
           }}
         >
           <span style={{ fontSize: "30px" }}>⚠</span>
@@ -695,6 +695,7 @@ export default function GameCanvas() {
             color: COLORS.text,
             boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
             backdropFilter: "blur(16px)",
+            pointerEvents: "auto",
           }}
         >
           <div
@@ -770,6 +771,7 @@ export default function GameCanvas() {
       {/* Pause overlay */}
       {isPaused && !loadingError && (
         <div
+          data-game-control
           role="status"
           style={{
             position: "absolute",
@@ -783,6 +785,7 @@ export default function GameCanvas() {
             background: "rgba(10, 9, 28, 0.72)",
             color: COLORS.text,
             backdropFilter: "blur(5px)",
+            pointerEvents: "auto",
           }}
         >
           <strong style={{ fontSize: "24px" }}>
