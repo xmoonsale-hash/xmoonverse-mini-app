@@ -7,6 +7,7 @@ import {
   getTelegramEnvironment,
   subscribeTelegramTheme,
   subscribeTelegramViewport,
+  triggerTelegramSelection,
 } from "../platform/telegram";
 
 type Tab = "world" | "character" | "inventory" | "quests" | "social";
@@ -36,6 +37,15 @@ export default function App() {
       unsubscribeViewport();
     };
   }, []);
+
+  const handleTabChange = (tab: Tab) => {
+    if (activeTab === tab) {
+      return;
+    }
+
+    triggerTelegramSelection();
+    setActiveTab(tab);
+  };
 
   return (
     <main className="app-shell">
@@ -91,7 +101,7 @@ export default function App() {
           <button
             key={tab.id}
             className={activeTab === tab.id ? "nav-item active" : "nav-item"}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
             type="button"
           >
             <span className="nav-icon">{tab.icon}</span>
