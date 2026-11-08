@@ -1,0 +1,187 @@
+import type { ItemId } from "@xmoonverse/shared";
+
+export interface DailyLoginReward {
+  day: number;
+  gold: number;
+  gems: number;
+  items: {
+    itemId: ItemId;
+    quantity: number;
+  }[];
+}
+
+export interface LoginRewardState {
+  lastClaimDate: string | null;
+  currentStreak: number;
+  totalClaims: number;
+}
+
+export interface LoginRewardResult {
+  state: LoginRewardState;
+  reward: DailyLoginReward;
+}
+
+export const DAILY_LOGIN_REWARDS: DailyLoginReward[] = [
+  {
+    day: 1,
+    gold: 100,
+    gems: 0,
+    items: []
+  },
+  {
+    day: 2,
+    gold: 150,
+    gems: 0,
+    items: []
+  },
+  {
+    day: 3,
+    gold: 200,
+    gems: 1,
+    items: [
+      {
+        itemId: "small_health_potion",
+        quantity: 1
+      }
+    ]
+  },
+  {
+    day: 4,
+    gold: 250,
+    gems: 0,
+    items: []
+  },
+  {
+    day: 5,
+    gold: 300,
+    gems: 2,
+    items: [
+      {
+        itemId: "small_health_potion",
+        quantity: 2
+      }
+    ]
+  },
+  {
+    day: 6,
+    gold: 400,
+    gems: 0,
+    items: []
+  },
+  {
+    day: 7,
+    gold: 500,
+    gems: 5,
+    items: [
+      {
+        itemId: "moon_crystal",
+        quantity: 1
+      }
+    ]
+  }
+];
+
+export function createLoginRewardState(): LoginRewardState {
+  return {
+    lastClaimDate: null,
+    currentStreak: 0,
+    totalClaims: 0
+  };
+}
+
+export function getLoginDateKey(timestamp: number): string {
+  if (!Number.isFinite(timestamp)) {
+    throw new Error("Invalid timestamp");
+  }
+
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+function getDateDifference(
+  previousDate: string,
+  currentDate: string
+): number {
+  const previous = new Date(
+    `${previousDate}T00:00:00.000Z`
+  );
+
+  const current = new Date(
+    `${currentDate}T00:00:00.000Z`
+  );
+
+  if (
+    Number.isNaN(previous.getTime()) ||
+    Number.isNaN(current.getTime()) ||
+    previous.toISOString().slice(0, 10) !== previousDate ||
+    current.toISOString().slice(0, 10) !== currentDate
+  ) {
+    throw new Error("Invalid login date");
+  }
+
+  return (
+    current.getTime() - previous.getTime()
+  ) / 86400000;
+}
+
+export function claimDailyLoginReward(
+  state: LoginRewardState,
+  timestamp: number = Date.now()
+): LoginRewardResult {
+  if (
+    !Number.isInteger(state.currentStreak) ||
+    state.currentStreak < 0 ||
+    !Number.isInteger(state.totalClaims) ||
+    state.totalClaims < 0
+  ) {
+    throw new Error("Invalid login reward state");
+  }
+
+  const currentDate = getLoginDateKey(timestamp);
+
+  let nextStreak = 1;
+
+  if (state.lastClaimDate !== null) {
+    const difference = getDateDifference(
+      state.lastClaimDate,
+      currentDate
+    );
+
+    if (difference < 0) {
+      throw new Error("Login date cannot move backwards");
+    }
+
+    if (difference === 0) {
+      throw new Error("Daily reward already claimed");
+    }
+
+    nextStreak =
+      difference === 1
+        ? state.currentStreak + 1
+        : 1;
+  }
+
+  const rewardDay =
+    ((nextStreak - 1) % DAILY_LOGIN_REWARDS.length) + 1;
+
+  const reward = DAILY_LOGIN_REWARDS.find(
+    (entry) => entry.day === rewardDay
+  );
+
+  if (!reward) {
+    throw new Error("Daily login reward not found");
+  }
+
+  return {
+    state: {
+      lastClaimDate: currentDate,
+      currentStreak: nextStreak,
+      totalClaims: state.totalClaims + 1
+    },
+    reward: {
+      ...reward,
+      items: reward.items.map((item) => ({
+        ...item
+      }))
+    }
+  };
+}
