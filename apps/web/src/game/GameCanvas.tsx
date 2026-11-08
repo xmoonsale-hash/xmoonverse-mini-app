@@ -16,10 +16,6 @@ export default function GameCanvas() {
       event.preventDefault();
     };
 
-    const preventGesture = (event: Event) => {
-      event.preventDefault();
-    };
-
     const blockedEvents = [
       "touchstart",
       "touchmove",
@@ -76,7 +72,10 @@ export default function GameCanvas() {
       canvas.style.touchAction = "none";
       canvas.style.userSelect = "none";
       canvas.style.webkitUserSelect = "none";
-      canvas.style.webkitTapHighlightColor = "transparent";
+      canvas.style.setProperty(
+        "-webkit-tap-highlight-color",
+        "transparent",
+      );
     }
 
     const handleVisibilityChange = () => {
@@ -110,7 +109,6 @@ export default function GameCanvas() {
     <div
       ref={containerRef}
       className="game-canvas"
-      onContextMenu={preventGesture}
       style={{
         position: "relative",
         display: "block",
