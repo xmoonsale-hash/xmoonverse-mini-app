@@ -1,7 +1,11 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import GameCanvas from "../game/GameCanvas";
-import { getTelegramEnvironment } from "../platform/telegram";
+import {
+  applyTelegramTheme,
+  getTelegramEnvironment,
+  subscribeTelegramTheme,
+} from "../platform/telegram";
 
 type Tab = "world" | "character" | "inventory" | "quests" | "social";
 
@@ -10,13 +14,19 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: "character", label: "Персонаж", icon: "🧙" },
   { id: "inventory", label: "Инвентарь", icon: "🎒" },
   { id: "quests", label: "Задания", icon: "📜" },
-  { id: "social", label: "Сообщество", icon: "👥" }
+  { id: "social", label: "Сообщество", icon: "👥" },
 ];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("world");
 
   const telegram = getTelegramEnvironment();
+
+  useEffect(() => {
+    applyTelegramTheme();
+
+    return subscribeTelegramTheme();
+  }, []);
 
   return (
     <main className="app-shell">
@@ -60,7 +70,9 @@ export default function App() {
               {tabs.find((tab) => tab.id === activeTab)?.icon}
             </span>
             <h2>{tabs.find((tab) => tab.id === activeTab)?.label}</h2>
-            <p>Этот раздел будет реализован на следующих этапах разработки.</p>
+            <p>
+              Этот раздел будет реализован на следующих этапах разработки.
+            </p>
           </div>
         )}
       </section>
