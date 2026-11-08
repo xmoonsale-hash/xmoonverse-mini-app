@@ -1,10 +1,18 @@
+
 import type { InventoryItem, ItemId } from "@xmoonverse/shared";
-import type { EquipmentSlot, GameItem } from "./items";
+import type { EquipmentSlot } from "./items";
 import { getItemById } from "./items";
 
 export type EquipmentState = Partial<
   Record<EquipmentSlot, ItemId>
 >;
+
+export interface EquipmentStatBonuses {
+  attack: number;
+  defense: number;
+  health: number;
+  mana: number;
+}
 
 export interface EquipmentResult {
   inventory: InventoryItem[];
@@ -92,8 +100,8 @@ export function unequipItem(
 
 export function getEquipmentStats(
   equipment: EquipmentState
-): NonNullable<GameItem["stats"]> {
-  const total = {
+): EquipmentStatBonuses {
+  const total: EquipmentStatBonuses = {
     attack: 0,
     defense: 0,
     health: 0,
