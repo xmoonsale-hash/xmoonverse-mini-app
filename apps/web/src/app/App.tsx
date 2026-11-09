@@ -1,5 +1,7 @@
+
 import { useCallback, useEffect, useState } from "react";
 import GameCanvas from "../game/GameCanvas";
+import CharacterCreation from "../game/CharacterCreation";
 import {
   applyTelegramTheme,
   applyTelegramViewport,
@@ -24,6 +26,7 @@ import {
 import {
   fetchGameState,
   type GameStateResult,
+  type CreateCharacterResponse,
 } from "../platform/game";
 
 type Tab = "world" | "character" | "inventory" | "quests" | "social";
@@ -100,11 +103,16 @@ export default function App() {
 
   const telegram = getTelegramEnvironment();
 
-  const loadGameState = useCallback(async (sessionToken: string) => {
+  const sessionToken =
+    authResult?.ok === true
+      ? authResult.data.session.token
+      : "";
+
+  const loadGameState = useCallback(async (token: string) => {
     setIsGameLoading(true);
     setGameStateResult(null);
 
-    const result = await fetchGameState(sessionToken);
+    const result = await fetchGameState(token);
 
     setGameStateResult(result);
     setIsGameLoading(false);
@@ -115,6 +123,24 @@ export default function App() {
 
     return result;
   }, []);
+
+  const handleCharacterCreated = (
+    data: CreateCharacterResponse
+  ) => {
+    setGameStateResult({
+      ok: true,
+      data: {
+        success: true,
+        hasCharacter: true,
+        character: data.character,
+        location: data.location,
+        inventory: [],
+      },
+    });
+
+    setActiveTab("world");
+    triggerTelegramSelection();
+  };
 
   useEffect(() => {
     applyTelegramTheme();
@@ -285,7 +311,7 @@ export default function App() {
   } else if (gameStateResult?.ok === true) {
     playerStatusLabel = gameStateResult.data.hasCharacter
       ? "В мире"
-      : "Новый путник";
+      : "Создание героя";
 
     playerStatusTitle = gameStateResult.data.hasCharacter
       ? "Игровое состояние загружено"
@@ -380,20 +406,10 @@ export default function App() {
               ) : gameState?.hasCharacter ? (
                 <GameCanvas />
               ) : gameState?.hasCharacter === false ? (
-                <div className="section-screen">
-                  <div className="section-screen-glow" />
-                  <div className="section-screen-content">
-                    <p className="section-eyebrow">
-                      XMOONVERSE REALM
-                    </p>
-                    <h1>Добро пожаловать в Realm</h1>
-                    <p className="section-description">
-                      Твой путь в этом мире начинается с создания
-                      персонажа. Скоро здесь появится возможность
-                      выбрать класс героя и отправиться в путешествие.
-                    </p>
-                  </div>
-                </div>
+                <CharacterCreation
+                  sessionToken={sessionToken}
+                  onCreated={handleCharacterCreated}
+                />
               ) : (
                 <GameCanvas />
               )}
