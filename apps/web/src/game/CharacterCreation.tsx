@@ -1,7 +1,8 @@
+
 import { useState, type CSSProperties, type FormEvent } from "react";
+import type { CharacterClass } from "@xmoonverse/shared";
 import {
   createCharacter,
-  type CharacterClass,
   type CreateCharacterResponse,
 } from "../platform/game";
 
