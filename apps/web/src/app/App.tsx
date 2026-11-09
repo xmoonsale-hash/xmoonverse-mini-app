@@ -20,6 +20,7 @@ import {
 } from "../platform/auth";
 import {
   clearPlayerSession,
+  getPlayerSession,
   getPlayerSessionToken,
   setPlayerSession,
 } from "../platform/session";
@@ -99,14 +100,11 @@ export default function App() {
   const [gameStateResult, setGameStateResult] =
     useState<GameStateResult | null>(null);
 
+  const [sessionToken, setSessionToken] = useState("");
+
   const [isGameLoading, setIsGameLoading] = useState(false);
 
   const telegram = getTelegramEnvironment();
-
-  const sessionToken =
-    authResult?.ok === true
-      ? authResult.data.session.token
-      : "";
 
   const loadGameState = useCallback(async (token: string) => {
     setIsGameLoading(true);
@@ -119,6 +117,7 @@ export default function App() {
 
     if (!result.ok && result.error === "session_invalid") {
       clearPlayerSession();
+      setSessionToken("");
     }
 
     return result;
@@ -158,25 +157,63 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
 
-    clearPlayerSession();
     setAuthResult(null);
     setPlayerMeResult(null);
     setGameStateResult(null);
     setIsGameLoading(false);
 
-    if (!telegram.isTelegram) {
-      return () => {
-        cancelled = true;
-      };
-    }
+    async function loadAuthenticatedPlayer() {
+      const savedSession = getPlayerSession();
 
-    async function authenticateAndLoadPlayer() {
+      if (savedSession) {
+        setSessionToken(savedSession.token);
+
+        const restoredPlayer = await fetchCurrentPlayer(
+          savedSession.token
+        );
+
+        if (cancelled) return;
+
+        if (restoredPlayer.ok) {
+          setPlayerMeResult(restoredPlayer);
+
+          const restoredGame = await fetchGameState(
+            savedSession.token
+          );
+
+          if (cancelled) return;
+
+          setGameStateResult(restoredGame);
+
+          if (
+            !restoredGame.ok &&
+            restoredGame.error === "session_invalid"
+          ) {
+            clearPlayerSession();
+            setSessionToken("");
+          }
+
+          return;
+        }
+
+        if (restoredPlayer.error !== "session_invalid") {
+          setPlayerMeResult(restoredPlayer);
+          return;
+        }
+
+        clearPlayerSession();
+        setSessionToken("");
+      }
+
+      if (!telegram.isTelegram) {
+        return;
+      }
+
       const result = await authenticateTelegram();
 
       if (cancelled) return;
 
       if (!result.ok) {
-        clearPlayerSession();
         setAuthResult(result);
         setPlayerMeResult(null);
         setGameStateResult(null);
@@ -189,6 +226,7 @@ export default function App() {
 
       if (!sessionAccepted) {
         clearPlayerSession();
+        setSessionToken("");
 
         setAuthResult({
           ok: false,
@@ -200,6 +238,7 @@ export default function App() {
         return;
       }
 
+      setSessionToken(result.data.session.token);
       setAuthResult(result);
 
       const playerResult = await fetchCurrentPlayer(
@@ -213,6 +252,7 @@ export default function App() {
       if (!playerResult.ok) {
         if (playerResult.error === "session_invalid") {
           clearPlayerSession();
+          setSessionToken("");
         }
 
         return;
@@ -228,10 +268,11 @@ export default function App() {
 
       if (!gameResult.ok && gameResult.error === "session_invalid") {
         clearPlayerSession();
+        setSessionToken("");
       }
     }
 
-    void authenticateAndLoadPlayer();
+    void loadAuthenticatedPlayer();
 
     return () => {
       cancelled = true;
@@ -287,10 +328,14 @@ export default function App() {
     playerStatusLabel = "Откройте в Telegram";
     playerStatusTitle =
       "Для авторизации откройте приложение через Telegram";
-  } else if (authResult === null) {
+  } else if (
+    authResult === null &&
+    playerMeResult === null
+  ) {
     playerStatusLabel = "Подключение…";
-    playerStatusTitle = "Выполняется авторизация через Telegram";
-  } else if (!authResult.ok) {
+    playerStatusTitle =
+      "Восстанавливаем сессию или выполняем авторизацию";
+  } else if (authResult !== null && !authResult.ok) {
     playerStatusLabel = getAuthErrorLabel(authResult.error);
     playerStatusTitle =
       `Не удалось выполнить авторизацию: ${authResult.error}`;
@@ -332,9 +377,11 @@ export default function App() {
 
     if (!token) {
       clearPlayerSession();
+      setSessionToken("");
       return;
     }
 
+    setSessionToken(token);
     await loadGameState(token);
   };
 
