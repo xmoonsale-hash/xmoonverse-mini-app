@@ -624,7 +624,6 @@ export default function GameCanvas() {
 
       {/* Fullscreen control */}
       <button
-        data-game-control
         type="button"
         aria-label={
           isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"
