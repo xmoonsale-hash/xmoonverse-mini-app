@@ -2,6 +2,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { verifyTelegramInitData } from "../auth/telegram";
+import { validatePlayerSession } from "../auth/session";
 
 type Env = {
   Bindings: {
@@ -48,7 +49,7 @@ app.use(
       return undefined;
     },
     allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type"],
+    allowHeaders: ["Content-Type", "Authorization"],
     maxAge: 600,
   })
 );
@@ -141,6 +142,60 @@ app.get("/api/v1/status", (c) => {
     game: "xMoonVerse RPG",
     apiVersion: "v1",
     environment: c.env.ENVIRONMENT,
+  });
+});
+
+app.get("/api/v1/player/me", async (c) => {
+  c.header("Cache-Control", "no-store");
+
+  const authorization = c.req.header("Authorization");
+  const match = authorization?.match(/^Bearer ([a-f0-9]{64})$/);
+
+  if (!match) {
+    return c.json(
+      {
+        success: false,
+        error: "A valid bearer token is required",
+      },
+      401
+    );
+  }
+
+  let session;
+
+  try {
+    session = await validatePlayerSession(c.env.DB, match[1]);
+  } catch {
+    return c.json(
+      {
+        success: false,
+        error: "Unable to validate player session",
+      },
+      503
+    );
+  }
+
+  if (!session) {
+    return c.json(
+      {
+        success: false,
+        error: "Player session is invalid or expired",
+      },
+      401
+    );
+  }
+
+  return c.json({
+    success: true,
+    player: {
+      id: session.playerId,
+      telegram_user_id: session.telegramUserId,
+      username: session.username,
+      avatar_url: session.avatarUrl,
+    },
+    session: {
+      id: session.sessionId,
+    },
   });
 });
 
