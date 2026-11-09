@@ -13,6 +13,8 @@ import {
 } from "../platform/telegram";
 import {
   authenticateTelegram,
+  fetchCurrentPlayer,
+  type PlayerMeResult,
   type TelegramAuthResult,
 } from "../platform/auth";
 import {
@@ -34,6 +36,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("world");
   const [authResult, setAuthResult] =
     useState<TelegramAuthResult | null>(null);
+  const [playerMeResult, setPlayerMeResult] =
+    useState<PlayerMeResult | null>(null);
 
   const telegram = getTelegramEnvironment();
 
@@ -55,6 +59,7 @@ export default function App() {
 
     clearPlayerSession();
     setAuthResult(null);
+    setPlayerMeResult(null);
 
     if (!telegram.isTelegram) {
       return () => {
@@ -62,30 +67,55 @@ export default function App() {
       };
     }
 
-    authenticateTelegram().then((result) => {
+    async function authenticateAndLoadPlayer() {
+      const result = await authenticateTelegram();
+
       if (cancelled) {
         return;
       }
 
-      if (result.ok) {
-        const sessionAccepted = setPlayerSession(
-          result.data.session
-        );
-
-        if (!sessionAccepted) {
-          clearPlayerSession();
-          setAuthResult({
-            ok: false,
-            error: "invalid_response",
-          });
-          return;
-        }
-      } else {
+      if (!result.ok) {
         clearPlayerSession();
+        setAuthResult(result);
+        setPlayerMeResult(null);
+        return;
+      }
+
+      const sessionAccepted = setPlayerSession(
+        result.data.session
+      );
+
+      if (!sessionAccepted) {
+        clearPlayerSession();
+        setAuthResult({
+          ok: false,
+          error: "invalid_response",
+        });
+        setPlayerMeResult(null);
+        return;
       }
 
       setAuthResult(result);
-    });
+
+      const playerResult = await fetchCurrentPlayer(
+        result.data.session.token
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      setPlayerMeResult(playerResult);
+
+      if (
+        !playerResult.ok &&
+        playerResult.error === "session_invalid"
+      ) {
+        clearPlayerSession();
+      }
+    }
+
+    void authenticateAndLoadPlayer();
 
     return () => {
       cancelled = true;
@@ -123,7 +153,9 @@ export default function App() {
   };
 
   const authenticatedPlayer =
-    authResult?.ok === true ? authResult.data.player : null;
+    playerMeResult?.ok === true
+      ? playerMeResult.data.player
+      : null;
 
   const playerLabel = authenticatedPlayer
     ? authenticatedPlayer.username ||
