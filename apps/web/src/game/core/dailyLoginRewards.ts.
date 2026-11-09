@@ -1,4 +1,6 @@
+
 import type { ItemId } from "@xmoonverse/shared";
+import { getItemById } from "./items";
 
 export interface DailyLoginReward {
   day: number;
@@ -81,6 +83,110 @@ export const DAILY_LOGIN_REWARDS: DailyLoginReward[] = [
   }
 ];
 
+function isValidNonNegativeInteger(
+  value: unknown
+): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 0
+  );
+}
+
+function isValidLoginDate(
+  value: unknown
+): value is string {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value)
+  ) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00.000Z`);
+
+  return (
+    Number.isFinite(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value
+  );
+}
+
+function validateLoginRewardCatalog(): void {
+  if (
+    !Array.isArray(DAILY_LOGIN_REWARDS) ||
+    DAILY_LOGIN_REWARDS.length === 0
+  ) {
+    throw new Error("Invalid daily login reward catalog");
+  }
+
+  const days = new Set<number>();
+
+  for (const reward of DAILY_LOGIN_REWARDS) {
+    if (
+      typeof reward !== "object" ||
+      reward === null ||
+      !Number.isSafeInteger(reward.day) ||
+      reward.day <= 0 ||
+      days.has(reward.day) ||
+      !isValidNonNegativeInteger(reward.gold) ||
+      !isValidNonNegativeInteger(reward.gems) ||
+      !Array.isArray(reward.items)
+    ) {
+      throw new Error("Invalid daily login reward definition");
+    }
+
+    days.add(reward.day);
+
+    const rewardedItems = new Set<ItemId>();
+
+    for (const item of reward.items) {
+      if (
+        typeof item !== "object" ||
+        item === null ||
+        typeof item.itemId !== "string" ||
+        !getItemById(item.itemId) ||
+        !Number.isSafeInteger(item.quantity) ||
+        item.quantity <= 0 ||
+        rewardedItems.has(item.itemId)
+      ) {
+        throw new Error("Invalid daily login reward item");
+      }
+
+      rewardedItems.add(item.itemId);
+    }
+  }
+
+  for (let day = 1; day <= DAILY_LOGIN_REWARDS.length; day += 1) {
+    if (!days.has(day)) {
+      throw new Error("Daily login reward days must be sequential");
+    }
+  }
+}
+
+function validateLoginRewardState(
+  state: LoginRewardState
+): void {
+  if (
+    typeof state !== "object" ||
+    state === null ||
+    !isValidNonNegativeInteger(state.currentStreak) ||
+    !isValidNonNegativeInteger(state.totalClaims) ||
+    (
+      state.lastClaimDate !== null &&
+      !isValidLoginDate(state.lastClaimDate)
+    )
+  ) {
+    throw new Error("Invalid login reward state");
+  }
+
+  if (
+    state.lastClaimDate === null &&
+    state.currentStreak !== 0
+  ) {
+    throw new Error("Invalid login streak without a claim date");
+  }
+}
+
 export function createLoginRewardState(): LoginRewardState {
   return {
     lastClaimDate: null,
@@ -90,17 +196,33 @@ export function createLoginRewardState(): LoginRewardState {
 }
 
 export function getLoginDateKey(timestamp: number): string {
-  if (!Number.isFinite(timestamp)) {
+  if (
+    !Number.isFinite(timestamp) ||
+    Math.abs(timestamp) > 8640000000000000
+  ) {
     throw new Error("Invalid timestamp");
   }
 
-  return new Date(timestamp).toISOString().slice(0, 10);
+  const date = new Date(timestamp);
+
+  if (!Number.isFinite(date.getTime())) {
+    throw new Error("Invalid timestamp");
+  }
+
+  return date.toISOString().slice(0, 10);
 }
 
 function getDateDifference(
   previousDate: string,
   currentDate: string
 ): number {
+  if (
+    !isValidLoginDate(previousDate) ||
+    !isValidLoginDate(currentDate)
+  ) {
+    throw new Error("Invalid login date");
+  }
+
   const previous = new Date(
     `${previousDate}T00:00:00.000Z`
   );
@@ -108,15 +230,6 @@ function getDateDifference(
   const current = new Date(
     `${currentDate}T00:00:00.000Z`
   );
-
-  if (
-    Number.isNaN(previous.getTime()) ||
-    Number.isNaN(current.getTime()) ||
-    previous.toISOString().slice(0, 10) !== previousDate ||
-    current.toISOString().slice(0, 10) !== currentDate
-  ) {
-    throw new Error("Invalid login date");
-  }
 
   return (
     current.getTime() - previous.getTime()
@@ -127,14 +240,8 @@ export function claimDailyLoginReward(
   state: LoginRewardState,
   timestamp: number = Date.now()
 ): LoginRewardResult {
-  if (
-    !Number.isInteger(state.currentStreak) ||
-    state.currentStreak < 0 ||
-    !Number.isInteger(state.totalClaims) ||
-    state.totalClaims < 0
-  ) {
-    throw new Error("Invalid login reward state");
-  }
+  validateLoginRewardState(state);
+  validateLoginRewardCatalog();
 
   const currentDate = getLoginDateKey(timestamp);
 
@@ -158,6 +265,13 @@ export function claimDailyLoginReward(
       difference === 1
         ? state.currentStreak + 1
         : 1;
+  }
+
+  if (
+    !Number.isSafeInteger(nextStreak) ||
+    !Number.isSafeInteger(state.totalClaims + 1)
+  ) {
+    throw new Error("Login reward state overflow");
   }
 
   const rewardDay =
