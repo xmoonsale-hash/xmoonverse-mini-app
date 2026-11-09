@@ -1,3 +1,4 @@
+
 import { getTelegramWebApp } from "./telegram";
 
 export type AuthenticatedTelegramUser = {
@@ -17,11 +18,18 @@ export type AuthenticatedPlayer = {
   avatar_url: string | null;
 };
 
+export type AuthenticatedSession = {
+  id: string;
+  token: string;
+  expiresAt: number;
+};
+
 export type TelegramAuthResponse = {
   success: true;
   authenticated: true;
   user: AuthenticatedTelegramUser;
   player: AuthenticatedPlayer;
+  session: AuthenticatedSession;
   authDate: number;
   expiresAt: number;
 };
@@ -66,6 +74,25 @@ function isAuthenticatedPlayer(
       player.avatar_url === null ||
       typeof player.avatar_url === "string"
     )
+  );
+}
+
+function isAuthenticatedSession(
+  value: unknown
+): value is AuthenticatedSession {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const session = value as Record<string, unknown>;
+
+  return (
+    typeof session.id === "string" &&
+    session.id.length > 0 &&
+    typeof session.token === "string" &&
+    /^[a-f0-9]{64}$/.test(session.token) &&
+    typeof session.expiresAt === "number" &&
+    Number.isFinite(session.expiresAt)
   );
 }
 
@@ -126,14 +153,20 @@ export async function authenticateTelegram(): Promise<TelegramAuthResult> {
     data.user === null ||
     !("id" in data.user) ||
     typeof data.user.id !== "number" ||
+    !Number.isSafeInteger(data.user.id) ||
     !("first_name" in data.user) ||
     typeof data.user.first_name !== "string" ||
     !("player" in data) ||
     !isAuthenticatedPlayer(data.player) ||
+    !("session" in data) ||
+    !isAuthenticatedSession(data.session) ||
     !("authDate" in data) ||
     typeof data.authDate !== "number" ||
+    !Number.isFinite(data.authDate) ||
     !("expiresAt" in data) ||
-    typeof data.expiresAt !== "number"
+    typeof data.expiresAt !== "number" ||
+    !Number.isFinite(data.expiresAt) ||
+    data.session.expiresAt !== data.expiresAt
   ) {
     return { ok: false, error: "invalid_response" };
   }
