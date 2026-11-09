@@ -53,6 +53,32 @@ export type TelegramAuthResult =
       status?: number;
     };
 
+export type PlayerMeResponse = {
+  success: true;
+  player: AuthenticatedPlayer;
+  session: {
+    id: string;
+  };
+};
+
+export type PlayerMeError =
+  | "api_not_configured"
+  | "network_error"
+  | "session_invalid"
+  | "server_error"
+  | "invalid_response";
+
+export type PlayerMeResult =
+  | {
+      ok: true;
+      data: PlayerMeResponse;
+    }
+  | {
+      ok: false;
+      error: PlayerMeError;
+      status?: number;
+    };
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "");
 
 function isAuthenticatedPlayer(
@@ -93,6 +119,34 @@ function isAuthenticatedSession(
     /^[a-f0-9]{64}$/.test(session.token) &&
     typeof session.expiresAt === "number" &&
     Number.isFinite(session.expiresAt)
+  );
+}
+
+function isPlayerMeResponse(
+  value: unknown
+): value is PlayerMeResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const response = value as Record<string, unknown>;
+
+  if (
+    response.success !== true ||
+    !("player" in response) ||
+    !isAuthenticatedPlayer(response.player) ||
+    !("session" in response) ||
+    typeof response.session !== "object" ||
+    response.session === null
+  ) {
+    return false;
+  }
+
+  const session = response.session as Record<string, unknown>;
+
+  return (
+    typeof session.id === "string" &&
+    session.id.length > 0
   );
 }
 
@@ -174,5 +228,80 @@ export async function authenticateTelegram(): Promise<TelegramAuthResult> {
   return {
     ok: true,
     data: data as TelegramAuthResponse,
+  };
+}
+
+export async function fetchCurrentPlayer(
+  sessionToken: string
+): Promise<PlayerMeResult> {
+  if (!API_BASE_URL) {
+    return {
+      ok: false,
+      error: "api_not_configured",
+    };
+  }
+
+  if (!/^[a-f0-9]{64}$/.test(sessionToken)) {
+    return {
+      ok: false,
+      error: "session_invalid",
+    };
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/player/me`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+      },
+      cache: "no-store",
+      credentials: "omit",
+    });
+  } catch {
+    return {
+      ok: false,
+      error: "network_error",
+    };
+  }
+
+  if (response.status === 401) {
+    return {
+      ok: false,
+      error: "session_invalid",
+      status: response.status,
+    };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      error: "server_error",
+      status: response.status,
+    };
+  }
+
+  let data: unknown;
+
+  try {
+    data = await response.json();
+  } catch {
+    return {
+      ok: false,
+      error: "invalid_response",
+    };
+  }
+
+  if (!isPlayerMeResponse(data)) {
+    return {
+      ok: false,
+      error: "invalid_response",
+    };
+  }
+
+  return {
+    ok: true,
+    data,
   };
 }
