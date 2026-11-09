@@ -11,23 +11,18 @@ export interface ProgressionResult {
   levelsGained: number;
 }
 
-export const MAX_CHARACTER_LEVEL = 100;
 export const INITIAL_CHARACTER_LEVEL = 1;
 export const INITIAL_SKILL_POINTS = 0;
 
 export function getExperienceRequired(level: number): number {
-  if (
-    !Number.isSafeInteger(level) ||
-    level < 1 ||
-    level > MAX_CHARACTER_LEVEL
-  ) {
+  if (!Number.isSafeInteger(level) || level < 1) {
     throw new Error("Level must be a valid character level");
   }
 
   const experience = Math.floor(100 * Math.pow(level, 1.5));
 
   if (!Number.isSafeInteger(experience) || experience < 1) {
-    throw new Error("Experience requirement is invalid");
+    throw new Error("Experience requirement exceeds the safe integer range");
   }
 
   return experience;
@@ -57,8 +52,7 @@ function validateProgressionState(
 
   if (
     !Number.isSafeInteger(current.level) ||
-    current.level < 1 ||
-    current.level > MAX_CHARACTER_LEVEL
+    current.level < 1
   ) {
     throw new Error("Invalid progression level");
   }
@@ -78,9 +72,7 @@ function validateProgressionState(
   }
 
   const expectedExperienceToNextLevel =
-    current.level === MAX_CHARACTER_LEVEL
-      ? 0
-      : getExperienceRequired(current.level);
+    getExperienceRequired(current.level);
 
   if (
     current.experienceToNextLevel !==
@@ -90,14 +82,6 @@ function validateProgressionState(
   }
 
   if (
-    current.level === MAX_CHARACTER_LEVEL &&
-    current.experience !== 0
-  ) {
-    throw new Error("Maximum-level character cannot have pending experience");
-  }
-
-  if (
-    current.level < MAX_CHARACTER_LEVEL &&
     current.experience >= expectedExperienceToNextLevel
   ) {
     throw new Error("Progression experience exceeds the level threshold");
@@ -123,7 +107,7 @@ export function addExperience(
     throw new Error("Experience amount is too large");
   }
 
-  if (current.level === MAX_CHARACTER_LEVEL || normalizedAmount === 0) {
+  if (normalizedAmount === 0) {
     return {
       progression: { ...current },
       levelsGained: 0
@@ -139,32 +123,30 @@ export function addExperience(
     throw new Error("Total experience exceeds the safe integer range");
   }
 
-  while (
-    level < MAX_CHARACTER_LEVEL &&
-    experience >= getExperienceRequired(level)
-  ) {
-    experience -= getExperienceRequired(level);
+  while (experience >= getExperienceRequired(level)) {
+    const requiredExperience = getExperienceRequired(level);
+
+    experience -= requiredExperience;
     level += 1;
     levelsGained += 1;
-
     skillPoints += 1;
+
+    if (
+      !Number.isSafeInteger(level) ||
+      !Number.isSafeInteger(levelsGained)
+    ) {
+      throw new Error("Character level exceeds the safe integer range");
+    }
 
     if (!Number.isSafeInteger(skillPoints)) {
       throw new Error("Skill points exceed the safe integer range");
     }
   }
 
-  if (level === MAX_CHARACTER_LEVEL) {
-    experience = 0;
-  }
-
   const progression: ProgressionState = {
     level,
     experience,
-    experienceToNextLevel:
-      level === MAX_CHARACTER_LEVEL
-        ? 0
-        : getExperienceRequired(level),
+    experienceToNextLevel: getExperienceRequired(level),
     skillPoints
   };
 
