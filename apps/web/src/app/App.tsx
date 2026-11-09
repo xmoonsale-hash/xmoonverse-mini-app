@@ -32,6 +32,35 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: "social", label: "Сообщество", icon: "♧" },
 ];
 
+function getAuthErrorLabel(
+  error: NonNullable<Extract<TelegramAuthResult, { ok: false }>["error"]>
+): string {
+  const labels: Record<typeof error, string> = {
+    not_in_telegram: "Не в Telegram",
+    missing_init_data: "Нет данных Telegram",
+    api_not_configured: "API не настроен",
+    network_error: "Нет соединения",
+    authentication_failed: "Ошибка входа",
+    invalid_response: "Ошибка ответа",
+  };
+
+  return labels[error];
+}
+
+function getPlayerErrorLabel(
+  error: Extract<PlayerMeResult, { ok: false }>["error"]
+): string {
+  const labels: Record<typeof error, string> = {
+    api_not_configured: "API не настроен",
+    network_error: "Нет соединения",
+    session_invalid: "Сессия недействительна",
+    server_error: "Ошибка сервера",
+    invalid_response: "Ошибка ответа",
+  };
+
+  return labels[error];
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("world");
   const [authResult, setAuthResult] =
@@ -164,6 +193,32 @@ export default function App() {
         : "Игрок")
     : "Путник";
 
+  let playerStatusLabel = "Не авторизован";
+  let playerStatusTitle = "Профиль игрока не подтверждён";
+
+  if (!telegram.isTelegram) {
+    playerStatusLabel = "Откройте в Telegram";
+    playerStatusTitle =
+      "Для авторизации откройте приложение через Telegram";
+  } else if (authResult === null) {
+    playerStatusLabel = "Подключение…";
+    playerStatusTitle = "Выполняется авторизация через Telegram";
+  } else if (!authResult.ok) {
+    playerStatusLabel = getAuthErrorLabel(authResult.error);
+    playerStatusTitle =
+      `Не удалось выполнить авторизацию: ${authResult.error}`;
+  } else if (playerMeResult === null) {
+    playerStatusLabel = "Проверка…";
+    playerStatusTitle = "Сервер проверяет игровую сессию";
+  } else if (!playerMeResult.ok) {
+    playerStatusLabel = getPlayerErrorLabel(playerMeResult.error);
+    playerStatusTitle =
+      `Не удалось подтвердить профиль: ${playerMeResult.error}`;
+  } else {
+    playerStatusLabel = "В сети";
+    playerStatusTitle = "Игровой профиль подтверждён сервером";
+  }
+
   const activeItem = tabs.find((tab) => tab.id === activeTab);
 
   return (
@@ -181,9 +236,13 @@ export default function App() {
             <small>REALM</small>
           </div>
 
-          <div className="player-status" title="Текущий профиль">
+          <div
+            className="player-status"
+            title={playerStatusTitle}
+            aria-live="polite"
+          >
             <span className="player-status-dot" />
-            <span>{playerLabel}</span>
+            <span>{playerStatusLabel}</span>
           </div>
         </header>
 
