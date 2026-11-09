@@ -93,47 +93,6 @@ function isValidCategory(
   return category === "gathering" || category === "crafting";
 }
 
-function isValidProfessionDefinition(
-  profession: ProfessionDefinition
-): boolean {
-  if (
-    !profession ||
-    typeof profession !== "object" ||
-    typeof profession.id !== "string" ||
-    !profession.id.trim() ||
-    typeof profession.name !== "string" ||
-    !profession.name.trim() ||
-    typeof profession.description !== "string" ||
-    !profession.description.trim() ||
-    !isValidCategory(profession.category) ||
-    !isPositiveInteger(profession.maxLevel) ||
-    !Array.isArray(profession.resourceIds)
-  ) {
-    return false;
-  }
-
-  const knownResourceIds = new Set(
-    RESOURCE_CATALOG.map((resource) => resource.id)
-  );
-
-  const seenResourceIds = new Set<string>();
-
-  for (const resourceId of profession.resourceIds) {
-    if (
-      typeof resourceId !== "string" ||
-      !resourceId.trim() ||
-      !knownResourceIds.has(resourceId) ||
-      seenResourceIds.has(resourceId)
-    ) {
-      return false;
-    }
-
-    seenResourceIds.add(resourceId);
-  }
-
-  return true;
-}
-
 export function validateProfessionCatalog(): string[] {
   const errors: string[] = [];
   const seenIds = new Set<string>();
