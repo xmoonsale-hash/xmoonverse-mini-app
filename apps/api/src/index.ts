@@ -1,4 +1,6 @@
+
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { verifyTelegramInitData } from "../auth/telegram";
 
 type Env = {
@@ -6,6 +8,7 @@ type Env = {
     ENVIRONMENT: string;
     GAME_NAME: string;
     TELEGRAM_BOT_TOKEN?: string;
+    WEB_APP_ORIGIN?: string;
     DB: D1Database;
   };
 };
@@ -16,13 +19,48 @@ const TELEGRAM_AUTH_MAX_AGE = 86400;
 
 const app = new Hono<Env>();
 
+const LOCAL_WEB_ORIGINS = new Set([
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:4173",
+  "http://127.0.0.1:4173",
+]);
+
+app.use(
+  "*",
+  cors({
+    origin: (origin, context) => {
+      if (!origin) {
+        return undefined;
+      }
+
+      const configuredOrigin = context.env.WEB_APP_ORIGIN;
+
+      if (configuredOrigin && origin === configuredOrigin) {
+        return configuredOrigin;
+      }
+
+      if (LOCAL_WEB_ORIGINS.has(origin)) {
+        return origin;
+      }
+
+      return undefined;
+    },
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: ["Content-Type"],
+    maxAge: 600,
+  })
+);
+
 async function readBodyWithLimit(
   request: Request,
   maxBytes: number
 ): Promise<string | null> {
   const reader = request.body?.getReader();
 
-  if (!reader) return "";
+  if (!reader) {
+    return "";
+  }
 
   const chunks: Uint8Array[] = [];
   let totalBytes = 0;
@@ -31,7 +69,9 @@ async function readBodyWithLimit(
     while (true) {
       const { done, value } = await reader.read();
 
-      if (done) break;
+      if (done) {
+        break;
+      }
 
       totalBytes += value.byteLength;
 
