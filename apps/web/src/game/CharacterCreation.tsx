@@ -19,6 +19,10 @@ type ClassOption = {
   role: string;
 };
 
+const MIN_CHARACTER_NAME_LENGTH = 3;
+const MAX_CHARACTER_NAME_LENGTH = 20;
+const INVALID_NAME_CHARACTERS = /[\u0000-\u001F\u007F]/;
+
 const classes: ClassOption[] = [
   {
     id: "warrior",
@@ -223,8 +227,9 @@ export default function CharacterCreation({
 
   const normalizedName = name.trim();
   const isNameValid =
-    normalizedName.length >= 2 &&
-    normalizedName.length <= 24;
+    normalizedName.length >= MIN_CHARACTER_NAME_LENGTH &&
+    normalizedName.length <= MAX_CHARACTER_NAME_LENGTH &&
+    !INVALID_NAME_CHARACTERS.test(normalizedName);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -281,8 +286,8 @@ export default function CharacterCreation({
               id="character-name"
               type="text"
               autoComplete="off"
-              maxLength={24}
-              minLength={2}
+              maxLength={MAX_CHARACTER_NAME_LENGTH}
+              minLength={MIN_CHARACTER_NAME_LENGTH}
               placeholder="Как тебя будут звать?"
               value={name}
               disabled={isSubmitting}
@@ -299,7 +304,7 @@ export default function CharacterCreation({
                 textAlign: "right",
               }}
             >
-              {normalizedName.length}/24
+              {normalizedName.length}/{MAX_CHARACTER_NAME_LENGTH}
             </p>
           </div>
 
@@ -357,8 +362,9 @@ export default function CharacterCreation({
           </button>
 
           <p style={styles.hint}>
-            Класс определяет выбранную роль героя. Баланс характеристик
-            будет настраиваться отдельной игровой системой.
+            Имя должно содержать от 3 до 20 символов.
+            Класс определяет выбранную роль героя.
+            Баланс характеристик будет настраиваться отдельной игровой системой.
           </p>
         </form>
       </div>
