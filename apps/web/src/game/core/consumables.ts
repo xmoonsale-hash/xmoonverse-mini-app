@@ -1,3 +1,4 @@
+
 import type {
   InventoryItem,
   ItemId
@@ -44,6 +45,34 @@ export function getConsumableById(
   );
 }
 
+function isValidVitals(vitals: CharacterVitals): boolean {
+  return (
+    Number.isFinite(vitals.health) &&
+    Number.isFinite(vitals.maxHealth) &&
+    Number.isFinite(vitals.mana) &&
+    Number.isFinite(vitals.maxMana) &&
+    vitals.maxHealth > 0 &&
+    vitals.maxMana >= 0 &&
+    vitals.health >= 0 &&
+    vitals.health <= vitals.maxHealth &&
+    vitals.mana >= 0 &&
+    vitals.mana <= vitals.maxMana
+  );
+}
+
+function getAvailableQuantity(
+  inventory: InventoryItem[],
+  itemId: ItemId
+): number {
+  return inventory.reduce(
+    (total, item) =>
+      item.itemId === itemId && !item.equipped
+        ? total + item.quantity
+        : total,
+    0
+  );
+}
+
 export function canUseConsumable(
   itemId: ItemId,
   inventory: InventoryItem[],
@@ -51,21 +80,38 @@ export function canUseConsumable(
 ): boolean {
   const consumable = getConsumableById(itemId);
 
-  const inventoryItem = inventory.find(
-    (item) => item.itemId === itemId
-  );
+  if (!consumable || !isValidVitals(vitals)) {
+    return false;
+  }
 
-  if (!consumable || !inventoryItem || inventoryItem.quantity < 1) {
+  if (
+    !Number.isFinite(consumable.healthRestore) ||
+    !Number.isFinite(consumable.manaRestore) ||
+    consumable.healthRestore < 0 ||
+    consumable.manaRestore < 0 ||
+    (
+      consumable.healthRestore === 0 &&
+      consumable.manaRestore === 0
+    )
+  ) {
+    return false;
+  }
+
+  if (getAvailableQuantity(inventory, itemId) < 1) {
     return false;
   }
 
   return (
     vitals.health > 0 &&
     (
-      (consumable.healthRestore > 0 &&
-        vitals.health < vitals.maxHealth) ||
-      (consumable.manaRestore > 0 &&
-        vitals.mana < vitals.maxMana)
+      (
+        consumable.healthRestore > 0 &&
+        vitals.health < vitals.maxHealth
+      ) ||
+      (
+        consumable.manaRestore > 0 &&
+        vitals.mana < vitals.maxMana
+      )
     )
   );
 }
