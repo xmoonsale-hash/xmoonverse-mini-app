@@ -15,6 +15,10 @@ import {
   authenticateTelegram,
   type TelegramAuthResult,
 } from "../platform/auth";
+import {
+  clearPlayerSession,
+  setPlayerSession,
+} from "../platform/session";
 
 type Tab = "world" | "character" | "inventory" | "quests" | "social";
 
@@ -49,15 +53,38 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
 
+    clearPlayerSession();
+    setAuthResult(null);
+
     if (!telegram.isTelegram) {
-      setAuthResult(null);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     authenticateTelegram().then((result) => {
-      if (!cancelled) {
-        setAuthResult(result);
+      if (cancelled) {
+        return;
       }
+
+      if (result.ok) {
+        const sessionAccepted = setPlayerSession(
+          result.data.session
+        );
+
+        if (!sessionAccepted) {
+          clearPlayerSession();
+          setAuthResult({
+            ok: false,
+            error: "invalid_response",
+          });
+          return;
+        }
+      } else {
+        clearPlayerSession();
+      }
+
+      setAuthResult(result);
     });
 
     return () => {
