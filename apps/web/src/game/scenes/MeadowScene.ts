@@ -1,7 +1,13 @@
 import Phaser from "phaser";
 
 type InteractableType = "npc" | "resource" | "camp";
-type ResourceType = "Гриб" | "Ягоды" | "Камень";
+type ResourceType =
+  | "Гриб"
+  | "Ягоды"
+  | "Камень"
+  | "Древесина"
+  | "Волокна"
+  | "Руда";
 type ResourceState = "available" | "collected" | "regrowing";
 
 interface InteractableObject {
@@ -64,6 +70,10 @@ export default class MeadowScene extends Phaser.Scene {
   private inventoryPanel!: Phaser.GameObjects.Container;
   private inventoryText!: Phaser.GameObjects.Text;
 
+  private inventoryWindow!: Phaser.GameObjects.Container;
+  private inventoryWindowText!: Phaser.GameObjects.Text;
+  private inventoryCloseText!: Phaser.GameObjects.Text;
+
   private notificationContainer!: Phaser.GameObjects.Container;
   private notificationText!: Phaser.GameObjects.Text;
   private notificationTween: Phaser.Tweens.Tween | null = null;
@@ -80,6 +90,9 @@ export default class MeadowScene extends Phaser.Scene {
     Гриб: 0,
     Ягоды: 0,
     Камень: 0,
+    Древесина: 0,
+    Волокна: 0,
+    Руда: 0,
   };
 
   private movementTarget: Phaser.Math.Vector2 | null = null;
@@ -141,6 +154,7 @@ export default class MeadowScene extends Phaser.Scene {
 
     this.updateNearbyInteractable();
     this.updateMinimap();
+    this.updateInventoryInterface();
   }
 
   private resetSceneState() {
@@ -164,6 +178,9 @@ export default class MeadowScene extends Phaser.Scene {
     this.resourceCounts.Гриб = 0;
     this.resourceCounts.Ягоды = 0;
     this.resourceCounts.Камень = 0;
+    this.resourceCounts.Древесина = 0;
+    this.resourceCounts.Волокна = 0;
+    this.resourceCounts.Руда = 0;
   }
 
   // --------------------------------------------------
@@ -719,6 +736,13 @@ export default class MeadowScene extends Phaser.Scene {
       { id: "berry-2", x: 1580, y: 600, type: "Ягоды" },
       { id: "stone-1", x: 900, y: 710, type: "Камень" },
       { id: "stone-2", x: 1650, y: 980, type: "Камень" },
+
+      { id: "wood-1", x: 1080, y: 1050, type: "Древесина" },
+      { id: "wood-2", x: 1740, y: 780, type: "Древесина" },
+      { id: "fiber-1", x: 850, y: 1080, type: "Волокна" },
+      { id: "fiber-2", x: 1510, y: 1100, type: "Волокна" },
+      { id: "ore-1", x: 780, y: 560, type: "Руда" },
+      { id: "ore-2", x: 1840, y: 1030, type: "Руда" },
     ];
 
     for (const resource of resources) {
@@ -743,7 +767,7 @@ export default class MeadowScene extends Phaser.Scene {
         this.add.circle(5, 2, 5, 0xd95779),
         this.add.circle(0, 7, 5, 0xb73e66),
       ]);
-    } else {
+    } else if (resource.type === "Камень") {
       container.add([
         this.add.triangle(
           0, 0,
@@ -753,6 +777,34 @@ export default class MeadowScene extends Phaser.Scene {
           0x9b9d9c
         ),
         this.add.line(0, 0, -5, 1, 4, -4, 0xd2d2ca).setLineWidth(2),
+      ]);
+    } else if (resource.type === "Древесина") {
+      container.add([
+        this.add.rectangle(0, 0, 20, 8, 0x93613e).setAngle(-28),
+        this.add.circle(-8, 4, 4, 0xc18b5b),
+        this.add.circle(8, -4, 4, 0xc18b5b),
+      ]);
+    } else if (resource.type === "Волокна") {
+      const fibers = this.add.graphics();
+      fibers.lineStyle(3, 0x9dbb67, 1);
+      fibers.beginPath();
+      fibers.moveTo(-7, 8);
+      fibers.lineTo(-3, -7);
+      fibers.lineTo(1, 6);
+      fibers.lineTo(6, -8);
+      fibers.strokePath();
+      container.add(fibers);
+      container.add(this.add.circle(0, 0, 3, 0xc3d58b));
+    } else {
+      container.add([
+        this.add.triangle(
+          0, 0,
+          -10, 7,
+          -2, -10,
+          11, 4,
+          0x9b78a9
+        ),
+        this.add.line(0, 0, -4, 3, 4, -5, 0xd8c4ff).setLineWidth(2),
       ]);
     }
 
@@ -832,7 +884,6 @@ export default class MeadowScene extends Phaser.Scene {
   }
 
   private regrowResource(target: InteractableObject) {
-    // Check the Phaser GameObject, not the data interface.
     if (!target.sprite || !target.sprite.active) {
       return;
     }
@@ -918,8 +969,6 @@ export default class MeadowScene extends Phaser.Scene {
     }
 
     this.facing = directionX > 0 ? 1 : -1;
-
-    // Container uses setScale(x, y), not setScaleX().
     this.player.setScale(this.facing, 1);
   }
 
@@ -1087,6 +1136,7 @@ export default class MeadowScene extends Phaser.Scene {
 
     return direction.scale(step);
   }
+
   private updateKeyboardMovement() {
     const direction = new Phaser.Math.Vector2(0, 0);
 
@@ -1112,8 +1162,8 @@ export default class MeadowScene extends Phaser.Scene {
         fontFamily: "Arial",
         fontSize: "16px",
         fontStyle: "bold",
-        color: "#e3f4d9",
-        stroke: "#17342b",
+        color: "#eee6ff",
+        stroke: "#171126",
         strokeThickness: 4,
       })
       .setScrollFactor(0)
@@ -1123,18 +1173,18 @@ export default class MeadowScene extends Phaser.Scene {
       .text(18, 40, "Стартовая долина", {
         fontFamily: "Arial",
         fontSize: "11px",
-        color: "#c5d9c4",
+        color: "#cbbce8",
       })
       .setScrollFactor(0)
       .setDepth(1000);
 
     this.resourceCounter = this.add
-      .text(18, 65, "Собрано ресурсов: 0", {
+      .text(18, 65, "", {
         fontFamily: "Arial",
         fontSize: "10px",
-        color: "#e3d5ff",
-        backgroundColor: "#17342b",
-        padding: { x: 7, y: 5 },
+        color: "#eee6ff",
+        backgroundColor: "#211a35",
+        padding: { x: 8, y: 6 },
       })
       .setScrollFactor(0)
       .setDepth(1000);
@@ -1142,18 +1192,19 @@ export default class MeadowScene extends Phaser.Scene {
     const inventoryBackground = this.add.rectangle(
       0,
       0,
-      150,
-      28,
-      0x17342b,
-      0.94
+      142,
+      30,
+      0x211a35,
+      0.96
     );
 
-    inventoryBackground.setStrokeStyle(1, 0xb89aff, 0.6);
+    inventoryBackground.setStrokeStyle(1, 0xb89aff, 0.85);
 
     this.inventoryText = this.add
-      .text(0, 0, "Рюкзак  ·  0", {
+      .text(0, 0, "Инвентарь", {
         fontFamily: "Arial",
-        fontSize: "10px",
+        fontSize: "11px",
+        fontStyle: "bold",
         color: "#ffffff",
       })
       .setOrigin(0.5);
@@ -1165,9 +1216,9 @@ export default class MeadowScene extends Phaser.Scene {
 
     this.inventoryPanel.setScrollFactor(0);
     this.inventoryPanel.setDepth(1050);
-    this.inventoryPanel.setSize(150, 28);
+    this.inventoryPanel.setSize(142, 30);
     this.inventoryPanel.setInteractive(
-      new Phaser.Geom.Rectangle(-75, -14, 150, 28),
+      new Phaser.Geom.Rectangle(-71, -15, 142, 30),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -1181,11 +1232,11 @@ export default class MeadowScene extends Phaser.Scene {
       0,
       250,
       34,
-      0x14271f,
-      0.92
+      0x211a35,
+      0.94
     );
 
-    hintBackground.setStrokeStyle(1, 0xb89aff, 0.65);
+    hintBackground.setStrokeStyle(1, 0xb89aff, 0.75);
 
     this.interactionLabel = this.add
       .text(0, 0, "", {
@@ -1212,11 +1263,11 @@ export default class MeadowScene extends Phaser.Scene {
       0,
       320,
       125,
-      0x111b20,
-      0.97
+      0x171326,
+      0.98
     );
 
-    dialogueBackground.setStrokeStyle(1, 0xb89aff, 0.8);
+    dialogueBackground.setStrokeStyle(1, 0xb89aff, 0.9);
 
     this.dialogueTitle = this.add.text(
       -145,
@@ -1247,7 +1298,7 @@ export default class MeadowScene extends Phaser.Scene {
       .text(145, 48, "E / кнопка — закрыть", {
         fontFamily: "Arial",
         fontSize: "9px",
-        color: "#a9b8ae",
+        color: "#c0b4d8",
       })
       .setOrigin(1, 0.5);
 
@@ -1266,24 +1317,89 @@ export default class MeadowScene extends Phaser.Scene {
     this.dialoguePanel.setDepth(1300);
     this.dialoguePanel.setVisible(false);
 
+    // Отдельное окно инвентаря: оно больше не использует
+    // панель диалога NPC.
+    const inventoryWindowBackground = this.add.rectangle(
+      0,
+      0,
+      310,
+      330,
+      0x171326,
+      0.98
+    );
+
+    inventoryWindowBackground.setStrokeStyle(
+      1.5,
+      0xb89aff,
+      0.95
+    );
+
+    const inventoryWindowTitle = this.add.text(
+      -130,
+      -145,
+      "ИНВЕНТАРЬ",
+      {
+        fontFamily: "Arial",
+        fontSize: "14px",
+        fontStyle: "bold",
+        color: "#e8dcff",
+      }
+    );
+
+    this.inventoryCloseText = this.add
+      .text(132, -145, "×", {
+        fontFamily: "Arial",
+        fontSize: "22px",
+        color: "#d8c4ff",
+      })
+      .setOrigin(0.5);
+
+    this.inventoryWindowText = this.add.text(
+      -130,
+      -112,
+      "",
+      {
+        fontFamily: "Arial",
+        fontSize: "12px",
+        color: "#f0eaff",
+        lineSpacing: 10,
+        wordWrap: { width: 260 },
+      }
+    );
+
+    this.inventoryWindow = this.add.container(
+      this.scale.width / 2,
+      this.scale.height / 2,
+      [
+        inventoryWindowBackground,
+        inventoryWindowTitle,
+        this.inventoryCloseText,
+        this.inventoryWindowText,
+      ]
+    );
+
+    this.inventoryWindow.setScrollFactor(0);
+    this.inventoryWindow.setDepth(1350);
+    this.inventoryWindow.setVisible(false);
+
     this.mobileButtonBackground = this.add.circle(
       0,
       0,
       30,
       0x5a447e,
-      0.95
+      0.97
     );
 
     this.mobileButtonBackground.setStrokeStyle(
       2,
       0xd8c4ff,
-      0.9
+      0.95
     );
 
     this.mobileButtonText = this.add
-      .text(0, 0, "E", {
+      .text(0, 0, "✧", {
         fontFamily: "Arial",
-        fontSize: "18px",
+        fontSize: "25px",
         fontStyle: "bold",
         color: "#ffffff",
       })
@@ -1301,9 +1417,6 @@ export default class MeadowScene extends Phaser.Scene {
     this.mobileInteractButton.setScrollFactor(0);
     this.mobileInteractButton.setDepth(1400);
     this.mobileInteractButton.setSize(60, 60);
-
-    // Кнопка обрабатывается в handlePointerDown().
-    // Не назначаем ей отдельный POINTER_DOWN обработчик.
     this.mobileInteractButton.setVisible(false);
 
     const notificationBackground = this.add.rectangle(
@@ -1311,14 +1424,14 @@ export default class MeadowScene extends Phaser.Scene {
       0,
       180,
       32,
-      0x17342b,
-      0.95
+      0x211a35,
+      0.97
     );
 
     notificationBackground.setStrokeStyle(
       1,
       0xb89aff,
-      0.8
+      0.85
     );
 
     this.notificationText = this.add
@@ -1346,21 +1459,19 @@ export default class MeadowScene extends Phaser.Scene {
 
   private updateInventoryInterface() {
     const total =
-      this.resourceCounts.Гриб +
-      this.resourceCounts.Ягоды +
-      this.resourceCounts.Камень;
+      Object.values(this.resourceCounts).reduce(
+        (sum, count) => sum + count,
+        0
+      );
 
     this.resourceCounter.setText(
-      `Собрано ресурсов: ${total}`
+      `Ресурсы: ${total}  ·  🍄 ${this.resourceCounts.Гриб}  ·  ягод ${this.resourceCounts.Ягоды}  ·  камень ${this.resourceCounts.Камень}`
     );
-
-    this.inventoryText.setText(`Рюкзак  ·  ${total}`);
 
     if (this.inventoryOpen) {
       this.refreshInventoryPanel();
     }
   }
-
   private showNotification(message: string) {
     this.notificationTween?.stop();
 
@@ -1405,28 +1516,35 @@ export default class MeadowScene extends Phaser.Scene {
   }
 
   private refreshInventoryPanel() {
-    const total =
-      this.resourceCounts.Гриб +
-      this.resourceCounts.Ягоды +
-      this.resourceCounts.Камень;
+    const resources: Array<[ResourceType, string]> = [
+      ["Гриб", "Грибы"],
+      ["Ягоды", "Ягоды"],
+      ["Камень", "Камень"],
+      ["Древесина", "Древесина"],
+      ["Волокна", "Растительные волокна"],
+      ["Руда", "Руда"],
+    ];
 
-    this.dialoguePanel.setVisible(this.inventoryOpen);
-
-    this.dialogueTitle.setText("ИНВЕНТАРЬ");
-
-    this.dialogueText.setText(
-      "СОДЕРЖИМОЕ РЮКЗАКА\n\n" +
-      `Грибы: ${this.resourceCounts.Гриб}\n` +
-      `Ягоды: ${this.resourceCounts.Ягоды}\n` +
-      `Камни: ${this.resourceCounts.Камень}\n\n` +
-      `Всего предметов: ${total}`
+    const total = Object.values(this.resourceCounts).reduce(
+      (sum, count) => sum + count,
+      0
     );
+
+    const lines = resources.map(
+      ([type, label]) =>
+        `${label}: ${this.resourceCounts[type]}`
+    );
+
+    this.inventoryWindowText.setText(
+      `СОБРАННЫЕ РЕСУРСЫ\n\n${lines.join("\n\n")}\n\nВсего предметов: ${total}`
+    );
+
+    this.inventoryWindow.setVisible(this.inventoryOpen);
   }
 
   private closeInventory() {
     this.inventoryOpen = false;
-    this.dialoguePanel.setVisible(false);
-    this.dialogueTitle.setText("ЭЛИАН");
+    this.inventoryWindow.setVisible(false);
     this.updateNearbyInteractable();
   }
 
@@ -1448,6 +1566,11 @@ export default class MeadowScene extends Phaser.Scene {
       height - 155
     );
 
+    this.inventoryWindow?.setPosition(
+      width / 2,
+      height / 2
+    );
+
     this.mobileInteractButton?.setPosition(
       width - 55,
       height - 65
@@ -1458,7 +1581,7 @@ export default class MeadowScene extends Phaser.Scene {
       height - 115
     );
 
-    this.inventoryPanel?.setPosition(95, 105);
+    this.inventoryPanel?.setPosition(90, 112);
   }
 
   // --------------------------------------------------
@@ -1468,9 +1591,9 @@ export default class MeadowScene extends Phaser.Scene {
   private createMinimap() {
     const panel = this.add.graphics();
 
-    panel.fillStyle(0x101d19, 0.94);
+    panel.fillStyle(0x171326, 0.96);
     panel.fillRoundedRect(0, 0, 132, 94, 7);
-    panel.lineStyle(1, 0xb89aff, 0.75);
+    panel.lineStyle(1, 0xb89aff, 0.85);
     panel.strokeRoundedRect(0, 0, 132, 94, 7);
 
     const map = this.add.graphics();
@@ -1529,7 +1652,13 @@ export default class MeadowScene extends Phaser.Scene {
           ? 0xe68ca9
           : item.resourceType === "Ягоды"
             ? 0xd95779
-            : 0xbfc8c6;
+            : item.resourceType === "Камень"
+              ? 0xbfc8c6
+              : item.resourceType === "Древесина"
+                ? 0x93613e
+                : item.resourceType === "Волокна"
+                  ? 0x9dbb67
+                  : 0x9b78a9;
 
       const marker = this.add
         .circle(
@@ -1681,7 +1810,7 @@ export default class MeadowScene extends Phaser.Scene {
         fontFamily: "Arial",
         fontSize: "9px",
         color: "#d8d5ed",
-        backgroundColor: "#17342b",
+        backgroundColor: "#211a35",
         padding: { x: 5, y: 3 },
       })
       .setScrollFactor(0)
@@ -1758,7 +1887,7 @@ export default class MeadowScene extends Phaser.Scene {
       this.mobileButtonText.setText("×");
       this.mobileButtonBackground.setFillStyle(
         0x795b65,
-        0.96
+        0.98
       );
       return;
     }
@@ -1770,23 +1899,27 @@ export default class MeadowScene extends Phaser.Scene {
     }
 
     let hint = "";
+    let mobileIcon = "⌕";
 
     if (nearest.type === "npc") {
       hint = `E — поговорить: ${nearest.name}`;
+      mobileIcon = "…";
     } else if (nearest.type === "resource") {
       hint = `E — собрать: ${nearest.name}`;
+      mobileIcon = "+";
     } else {
       hint = `E — осмотреть: ${nearest.name}`;
+      mobileIcon = "⌕";
     }
 
     this.interactionLabel.setText(hint);
     this.interactionPanel.setVisible(true);
     this.mobileInteractButton.setVisible(true);
 
-    this.mobileButtonText.setText("E");
+    this.mobileButtonText.setText(mobileIcon);
     this.mobileButtonBackground.setFillStyle(
       0x5a447e,
-      0.95
+      0.98
     );
   }
 
@@ -1830,7 +1963,7 @@ export default class MeadowScene extends Phaser.Scene {
   private interactWithNPC(target: InteractableObject) {
     const dialogues = [
       "Добро пожаловать в Greenhaven! Я Элиан, путешественник. Здесь можно отдохнуть у костра перед дорогой.",
-      "В долине можно найти грибы, ягоды и камни. Исследуй окрестности — полезные вещи встречаются повсюду.",
+      "В долине можно найти грибы, ягоды, камни, древесину, волокна и руду. Исследуй окрестности — полезные вещи встречаются повсюду.",
       "Не торопись покидать долину. Иногда самые интересные находки находятся совсем рядом.",
     ];
 
@@ -1877,7 +2010,7 @@ export default class MeadowScene extends Phaser.Scene {
     this.mobileButtonText.setText("×");
     this.mobileButtonBackground.setFillStyle(
       0x795b65,
-      0.96
+      0.98
     );
   }
 
@@ -1923,8 +2056,7 @@ export default class MeadowScene extends Phaser.Scene {
       return;
     }
 
-    // Сначала проверяем экранную кнопку E / ×.
-    // Это позволяет ей работать и при открытом диалоге.
+    // Сначала проверяем мобильную кнопку действия.
     if (
       this.mobileInteractButton?.visible &&
       this.mobileInteractButton.getBounds().contains(
@@ -1933,6 +2065,18 @@ export default class MeadowScene extends Phaser.Scene {
       )
     ) {
       this.interact();
+      return;
+    }
+
+    // Отдельно проверяем крестик окна инвентаря.
+    if (
+      this.inventoryOpen &&
+      this.inventoryCloseText.getBounds().contains(
+        pointer.x,
+        pointer.y
+      )
+    ) {
+      this.closeInventory();
       return;
     }
 
