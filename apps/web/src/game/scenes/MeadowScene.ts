@@ -254,7 +254,6 @@ export default class MeadowScene extends Phaser.Scene {
 
     stones.setDepth(3);
 
-    // Distant violet crystal glimmers.
     const glimmers = this.add.graphics();
 
     for (let i = 0; i < 45; i++) {
@@ -406,7 +405,6 @@ export default class MeadowScene extends Phaser.Scene {
 
     grass.setDepth(7);
 
-    // Glowing violet crystals scattered around the valley.
     for (let i = 0; i < 26; i++) {
       const x = Phaser.Math.Between(80, this.worldWidth - 80);
       const y = Phaser.Math.Between(80, this.worldHeight - 80);
@@ -490,23 +488,18 @@ export default class MeadowScene extends Phaser.Scene {
       const shadow = this.add.ellipse(
         0, 13, 36, 15, 0x09051b, 0.5
       );
-
       const trunk = this.add.rectangle(
         0, 11, 9, 25, 0x49305d
       );
-
       const crownBack = this.add.circle(
         0, -5, 20, 0x35204f
       );
-
       const crown = this.add.circle(
         -3, -12, 16, 0x583778
       );
-
       const crownLight = this.add.circle(
         -8, -16, 7, 0x8954ae, 0.9
       );
-
       const crownGlow = this.add.circle(
         0, -7, 25, 0x9c4de8, 0.1
       );
@@ -1261,6 +1254,665 @@ export default class MeadowScene extends Phaser.Scene {
     return direction;
   }
 
+  // --------------------------------------------------
+  // USER INTERFACE
+  // --------------------------------------------------
+
+  private createWorldInterface() {
+    this.resourceCounter = this.add
+      .text(12, 12, "", {
+        fontFamily: "Arial",
+        fontSize: "11px",
+        fontStyle: "bold",
+        color: "#f2eaff",
+        backgroundColor: "#211633",
+        padding: { x: 9, y: 7 },
+      })
+      .setScrollFactor(0)
+      .setDepth(1100);
+
+    const interactionBackground = this.add.rectangle(
+      0,
+      0,
+      250,
+      38,
+      0x211633,
+      0.96
+    );
+    interactionBackground.setStrokeStyle(1, 0xb89aff, 0.85);
+
+    this.interactionLabel = this.add
+      .text(0, 0, "", {
+        fontFamily: "Arial",
+        fontSize: "11px",
+        color: "#ffffff",
+        align: "center",
+        wordWrap: { width: 225 },
+      })
+      .setOrigin(0.5);
+
+    this.interactionPanel = this.add.container(
+      this.scale.width / 2,
+      this.scale.height - 75,
+      [interactionBackground, this.interactionLabel]
+    );
+
+    this.interactionPanel.setScrollFactor(0);
+    this.interactionPanel.setDepth(1200);
+    this.interactionPanel.setVisible(false);
+
+    const dialogueBackground = this.add.rectangle(
+      0,
+      0,
+      320,
+      132,
+      0x171126,
+      0.98
+    );
+    dialogueBackground.setStrokeStyle(1.5, 0xb89aff, 0.95);
+
+    this.dialogueTitle = this.add.text(
+      -145,
+      -51,
+      "ЭЛИАН",
+      {
+        fontFamily: "Arial",
+        fontSize: "12px",
+        fontStyle: "bold",
+        color: "#dfcaff",
+      }
+    );
+
+    this.dialogueText = this.add.text(
+      -145,
+      -25,
+      "",
+      {
+        fontFamily: "Arial",
+        fontSize: "11px",
+        color: "#f0eaff",
+        wordWrap: { width: 285 },
+        lineSpacing: 4,
+      }
+    );
+
+    const dialogueHint = this.add
+      .text(145, 52, "Нажми E или ×, чтобы закрыть", {
+        fontFamily: "Arial",
+        fontSize: "9px",
+        color: "#bcaad7",
+      })
+      .setOrigin(1, 0.5);
+
+    this.dialoguePanel = this.add.container(
+      this.scale.width / 2,
+      this.scale.height - 155,
+      [
+        dialogueBackground,
+        this.dialogueTitle,
+        this.dialogueText,
+        dialogueHint,
+      ]
+    );
+
+    this.dialoguePanel.setScrollFactor(0);
+    this.dialoguePanel.setDepth(1300);
+    this.dialoguePanel.setVisible(false);
+
+    // Окно инвентаря открывается через системную навигацию
+    // приложения или клавишу I. Отдельной кнопки на поле нет.
+    const inventoryBackground = this.add.rectangle(
+      0,
+      0,
+      310,
+      330,
+      0x171126,
+      0.98
+    );
+    inventoryBackground.setStrokeStyle(1.5, 0xb89aff, 0.95);
+
+    const inventoryTitle = this.add.text(
+      -130,
+      -145,
+      "ИНВЕНТАРЬ",
+      {
+        fontFamily: "Arial",
+        fontSize: "14px",
+        fontStyle: "bold",
+        color: "#eadfff",
+      }
+    );
+
+    this.inventoryCloseText = this.add
+      .text(132, -145, "×", {
+        fontFamily: "Arial",
+        fontSize: "24px",
+        color: "#e0ccff",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    this.inventoryCloseText.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => this.closeInventory()
+    );
+
+    this.inventoryWindowText = this.add.text(
+      -130,
+      -110,
+      "",
+      {
+        fontFamily: "Arial",
+        fontSize: "12px",
+        color: "#f0eaff",
+        lineSpacing: 10,
+        wordWrap: { width: 260 },
+      }
+    );
+
+    this.inventoryWindow = this.add.container(
+      this.scale.width / 2,
+      this.scale.height / 2,
+      [
+        inventoryBackground,
+        inventoryTitle,
+        this.inventoryCloseText,
+        this.inventoryWindowText,
+      ]
+    );
+
+    this.inventoryWindow.setScrollFactor(0);
+    this.inventoryWindow.setDepth(1400);
+    this.inventoryWindow.setVisible(false);
+
+    this.mobileButtonBackground = this.add
+      .circle(0, 0, 29, 0x65458c, 0.98)
+      .setStrokeStyle(2, 0xd8c4ff, 0.95);
+
+    this.mobileButtonText = this.add
+      .text(0, 0, "✧", {
+        fontFamily: "Arial",
+        fontSize: "24px",
+        fontStyle: "bold",
+        color: "#ffffff",
+      })
+      .setOrigin(0.5);
+
+    this.mobileInteractButton = this.add.container(
+      this.scale.width - 55,
+      this.scale.height - 75,
+      [
+        this.mobileButtonBackground,
+        this.mobileButtonText,
+      ]
+    );
+
+    this.mobileInteractButton.setScrollFactor(0);
+    this.mobileInteractButton.setDepth(1500);
+    this.mobileInteractButton.setSize(60, 60);
+    this.mobileInteractButton.setInteractive(
+      new Phaser.Geom.Circle(0, 0, 30),
+      Phaser.Geom.Circle.Contains
+    );
+    this.mobileInteractButton.setVisible(false);
+
+    this.mobileInteractButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => this.handleInteraction()
+    );
+
+    const notificationBackground = this.add.rectangle(
+      0,
+      0,
+      190,
+      34,
+      0x211633,
+      0.97
+    );
+    notificationBackground.setStrokeStyle(1, 0xb89aff, 0.9);
+
+    this.notificationText = this.add
+      .text(0, 0, "", {
+        fontFamily: "Arial",
+        fontSize: "11px",
+        fontStyle: "bold",
+        color: "#ffffff",
+        align: "center",
+      })
+      .setOrigin(0.5);
+
+    this.notificationContainer = this.add.container(
+      this.scale.width / 2,
+      95,
+      [
+        notificationBackground,
+        this.notificationText,
+      ]
+    );
+
+    this.notificationContainer.setScrollFactor(0);
+    this.notificationContainer.setDepth(1600);
+    this.notificationContainer.setVisible(false);
+  }
+
+  // --------------------------------------------------
+  // MINIMAP
+  // --------------------------------------------------
+
+  private createMinimap() {
+    const panel = this.add.graphics();
+
+    panel.fillStyle(0x171126, 0.97);
+    panel.fillRoundedRect(0, 0, 132, 94, 7);
+    panel.lineStyle(1, 0xb89aff, 0.9);
+    panel.strokeRoundedRect(0, 0, 132, 94, 7);
+
+    const map = this.add.graphics();
+
+    map.fillStyle(0x30254b, 1);
+    map.fillRect(
+      this.minimapBounds.x,
+      this.minimapBounds.y,
+      this.minimapBounds.width,
+      this.minimapBounds.height
+    );
+
+    map.lineStyle(1, 0x9b83c4, 0.55);
+    map.strokeRect(
+      this.minimapBounds.x,
+      this.minimapBounds.y,
+      this.minimapBounds.width,
+      this.minimapBounds.height
+    );
+
+    map.fillStyle(0x8065a8, 0.55);
+
+    for (const tree of this.treeLocations) {
+      const point = this.worldToMinimap(tree.x, tree.y);
+      map.fillCircle(point.x, point.y, 1.2);
+    }
+
+    const spawn = this.worldToMinimap(
+      this.spawnPosition.x,
+      this.spawnPosition.y
+    );
+
+    map.fillStyle(0xd8c4ff, 1);
+    map.fillCircle(spawn.x, spawn.y, 2.5);
+
+    const camp = this.worldToMinimap(
+      this.campPosition.x,
+      this.campPosition.y
+    );
+
+    map.fillStyle(0xffb36b, 1);
+    map.fillCircle(camp.x, camp.y, 3);
+    map.lineStyle(1, 0xffdfb3, 0.9);
+    map.strokeCircle(camp.x, camp.y, 5);
+
+    const npc = this.interactables.find(
+      (item) => item.type === "npc"
+    );
+
+    if (npc) {
+      const point = this.worldToMinimap(npc.x, npc.y);
+      map.fillStyle(0x7ed7ed, 1);
+      map.fillCircle(point.x, point.y, 2.5);
+    }
+
+    const markers: Phaser.GameObjects.GameObject[] = [];
+
+    for (const item of this.interactables) {
+      if (item.type !== "resource") continue;
+
+      const point = this.worldToMinimap(item.x, item.y);
+
+      const color =
+        item.resourceType === "Гриб"
+          ? 0xe68ca9
+          : item.resourceType === "Ягоды"
+            ? 0xd95779
+            : item.resourceType === "Камень"
+              ? 0xbfc8c6
+              : item.resourceType === "Древесина"
+                ? 0x93613e
+                : item.resourceType === "Волокна"
+                  ? 0x9dbb67
+                  : 0x9b78c9;
+
+      const marker = this.add
+        .circle(
+          point.x,
+          point.y,
+          2,
+          color,
+          item.state === "available" ? 1 : 0.2
+        )
+        .setStrokeStyle(0.5, 0xffffff, 0.65);
+
+      this.minimapResourceMarkers.set(item.id, marker);
+      markers.push(marker);
+    }
+
+    const title = this.add.text(10, 5, "МИНИ-КАРТА", {
+      fontFamily: "Arial",
+      fontSize: "9px",
+      fontStyle: "bold",
+      color: "#e7d9ff",
+      letterSpacing: 1,
+    });
+
+    this.minimapPlayerMarker = this.add
+      .circle(spawn.x, spawn.y, 3.5, 0xffffff)
+      .setStrokeStyle(1, 0x7651c7);
+
+    this.minimap = this.add.container(
+      0,
+      0,
+      [
+        panel,
+        map,
+        title,
+        ...markers,
+        this.minimapPlayerMarker,
+      ]
+    );
+
+    this.minimap.setScrollFactor(0);
+    this.minimap.setDepth(1150);
+    this.minimap.setSize(132, 94);
+    this.minimap.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, 132, 94),
+      Phaser.Geom.Rectangle.Contains
+    );
+
+    this.minimap.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      (
+        pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData
+      ) => {
+        this.handleMinimapNavigation(pointer);
+        event.stopPropagation();
+      }
+    );
+  }
+
+  private worldToMinimap(x: number, y: number) {
+    return {
+      x:
+        this.minimapBounds.x +
+        (x / this.worldWidth) * this.minimapBounds.width,
+      y:
+        this.minimapBounds.y +
+        (y / this.worldHeight) * this.minimapBounds.height,
+    };
+  }
+
+  private updateResourceMinimapMarker(
+    target: InteractableObject
+  ) {
+    const marker = this.minimapResourceMarkers.get(target.id);
+
+    if (!marker) return;
+
+    marker.setAlpha(
+      target.state === "available" ? 1 : 0.2
+    );
+  }
+
+  private updateMinimap() {
+    if (!this.player || !this.minimapPlayerMarker) return;
+
+    const point = this.worldToMinimap(
+      this.player.x,
+      this.player.y
+    );
+
+    this.minimapPlayerMarker.setPosition(
+      point.x,
+      point.y
+    );
+  }
+
+  private positionMinimap() {
+    if (!this.minimap || !this.scale) return;
+
+    this.minimap.setPosition(
+      Math.max(8, this.scale.width - 140),
+      8
+    );
+  }
+
+  private handleMinimapNavigation(
+    pointer: Phaser.Input.Pointer
+  ): boolean {
+    if (
+      !this.minimap ||
+      this.dialogueOpen ||
+      this.inventoryOpen
+    ) {
+      return false;
+    }
+
+    const localX = pointer.x - this.minimap.x;
+    const localY = pointer.y - this.minimap.y;
+
+    const { x, y, width, height } = this.minimapBounds;
+
+    const insideMap =
+      localX >= x &&
+      localX <= x + width &&
+      localY >= y &&
+      localY <= y + height;
+
+    if (!insideMap) return false;
+
+    const normalizedX = (localX - x) / width;
+    const normalizedY = (localY - y) / height;
+
+    this.setMovementDestination(
+      normalizedX * this.worldWidth,
+      normalizedY * this.worldHeight
+    );
+
+    return true;
+  }
+
+  // --------------------------------------------------
+  // DAY AND NIGHT
+  // --------------------------------------------------
+
+  private createDayNightSystem() {
+    this.dayNightOverlay = this.add
+      .rectangle(
+        0,
+        0,
+        this.scale.width,
+        this.scale.height,
+        0x101b45,
+        0
+      )
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(900);
+
+    this.timeLabel = this.add
+      .text(12, 65, "", {
+        fontFamily: "Arial",
+        fontSize: "9px",
+        color: "#ded2f2",
+        backgroundColor: "#211633",
+        padding: { x: 6, y: 4 },
+      })
+      .setScrollFactor(0)
+      .setDepth(1100);
+
+    this.updateDayNight(0);
+  }
+
+  private updateDayNight(delta = 0) {
+    if (!this.dayNightOverlay || !this.timeLabel) return;
+
+    this.elapsedTime += delta;
+
+    // Полный игровой день длится 12 минут реального времени.
+    this.worldTime = (
+      0.35 + this.elapsedTime / 720000
+    ) % 1;
+
+    const hour = Math.floor(this.worldTime * 24);
+
+    let alpha = 0;
+    let label = "День";
+
+    if (hour >= 5 && hour < 8) {
+      alpha = 0.12;
+      label = "Рассвет";
+    } else if (hour >= 8 && hour < 17) {
+      alpha = 0;
+      label = "День";
+    } else if (hour >= 17 && hour < 20) {
+      alpha = 0.16;
+      label = "Закат";
+    } else {
+      alpha = 0.38;
+      label = "Ночь";
+    }
+
+    this.dayNightOverlay.setSize(
+      this.scale.width,
+      this.scale.height
+    );
+    this.dayNightOverlay.setAlpha(alpha);
+
+    this.timeLabel.setText(
+      `${String(hour).padStart(2, "0")}:00 · ${label}`
+    );
+  }
+
+  // --------------------------------------------------
+  // INTERACTION SYSTEM
+  // --------------------------------------------------
+
+  private updateNearbyInteractable() {
+    if (
+      !this.player ||
+      !this.interactionPanel ||
+      !this.mobileInteractButton
+    ) {
+      return;
+    }
+
+    let nearest: InteractableObject | null = null;
+    let nearestDistance = this.interactionDistance;
+
+    for (const item of this.interactables) {
+      if (
+        item.type === "resource" &&
+        item.state !== "available"
+      ) {
+        continue;
+      }
+
+      const distance = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        item.x,
+        item.y
+      );
+
+      if (distance < nearestDistance) {
+        nearest = item;
+        nearestDistance = distance;
+      }
+    }
+
+    this.nearbyInteractable = nearest;
+
+    if (this.dialogueOpen) {
+      this.interactionPanel.setVisible(false);
+      this.mobileInteractButton.setVisible(true);
+      this.mobileButtonText.setText("×");
+      this.mobileButtonBackground.setFillStyle(
+        0x795b65,
+        0.98
+      );
+      return;
+    }
+
+    if (this.inventoryOpen) {
+      this.interactionPanel.setVisible(false);
+      this.mobileInteractButton.setVisible(false);
+      return;
+    }
+
+    if (!nearest) {
+      this.interactionPanel.setVisible(false);
+      this.mobileInteractButton.setVisible(false);
+      return;
+    }
+
+    let hint = "";
+    let mobileIcon = "⌕";
+
+    if (nearest.type === "npc") {
+      hint = `E — поговорить: ${nearest.name}`;
+      mobileIcon = "…";
+    } else if (nearest.type === "resource") {
+      hint = `E — собрать: ${nearest.name}`;
+      mobileIcon = "+";
+    } else {
+      hint = `E — осмотреть: ${nearest.name}`;
+      mobileIcon = "⌕";
+    }
+
+    this.interactionLabel.setText(hint);
+    this.interactionPanel.setVisible(true);
+    this.mobileInteractButton.setVisible(true);
+
+    this.mobileButtonText.setText(mobileIcon);
+    this.mobileButtonBackground.setFillStyle(
+      0x65458c,
+      0.98
+    );
+  }
+
+  private handleInteraction() {
+    if (this.dialogueOpen) {
+      this.closeDialogue();
+      return;
+    }
+
+    if (this.inventoryOpen) {
+      this.closeInventory();
+      return;
+    }
+
+    const target = this.nearbyInteractable;
+
+    if (!target || !this.player) return;
+
+    const distance = Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      target.x,
+      target.y
+    );
+
+    if (distance > this.interactionDistance) return;
+
+    if (target.type === "npc") {
+      this.openNPCDialogue(target);
+    } else if (target.type === "camp") {
+      this.openCampDialogue(target);
+    } else if (target.type === "resource") {
+      this.collectResource(target);
+    }
+  }
+
   private openNPCDialogue(target: InteractableObject) {
     this.dialogueOpen = true;
     this.movementTarget = null;
@@ -1288,11 +1940,11 @@ export default class MeadowScene extends Phaser.Scene {
     this.hideTargetMarker();
 
     const messages: Record<string, string> = {
-      "Костёр":
+      Костёр:
         "Тёплый костёр путешественников. Здесь можно передохнуть после долгой дороги.",
-      "Палатка":
+      Палатка:
         "Небольшая палатка. Похоже, здесь остановились исследователи этих земель.",
-      "Припасы":
+      Припасы:
         "Запасы лагеря. Возможно, в будущем здесь появится возможность обменивать и хранить предметы.",
     };
 
@@ -1310,12 +1962,18 @@ export default class MeadowScene extends Phaser.Scene {
     this.positionDialogue();
 
     this.interactionPanel.setVisible(false);
-    this.mobileInteractButton.setVisible(false);
+    this.mobileInteractButton.setVisible(true);
+    this.mobileButtonText.setText("×");
+    this.mobileButtonBackground.setFillStyle(
+      0x795b65,
+      0.98
+    );
   }
 
   private closeDialogue() {
     this.dialogueOpen = false;
     this.dialoguePanel.setVisible(false);
+    this.dialogueTitle.setText("ЭЛИАН");
 
     this.updateNearbyInteractable();
   }
@@ -1334,9 +1992,7 @@ export default class MeadowScene extends Phaser.Scene {
       0
     );
 
-    this.resourceCounter.setText(
-      `✦ ${total} ресурсов`
-    );
+    this.resourceCounter.setText(`✦ ${total} ресурсов`);
 
     this.inventoryWindowText.setText(
       [
@@ -1420,19 +2076,16 @@ export default class MeadowScene extends Phaser.Scene {
     this.resourceCounter?.setPosition(12, 12);
 
     this.interactionPanel?.setPosition(
-      width / 2 - 95,
-      height - 112
+      width / 2,
+      height - 75
     );
 
     this.mobileInteractButton?.setPosition(
       width - 55,
-      height - 105
+      height - 75
     );
 
-    this.timeLabel?.setPosition(
-      12,
-      65
-    );
+    this.timeLabel?.setPosition(12, 65);
 
     this.positionDialogue();
     this.positionInventory();
@@ -1447,19 +2100,16 @@ export default class MeadowScene extends Phaser.Scene {
 
     this.dialoguePanel.setPosition(
       Math.max(8, (width - 320) / 2),
-      Math.max(12, height - 165)
+      Math.max(12, height - 155)
     );
   }
 
   private positionInventory() {
     if (!this.inventoryWindow) return;
 
-    const width = this.scale.width;
-    const height = this.scale.height;
-
     this.inventoryWindow.setPosition(
-      (width - 290) / 2,
-      (height - 300) / 2
+      (this.scale.width - 310) / 2,
+      (this.scale.height - 330) / 2
     );
   }
 
@@ -1467,8 +2117,8 @@ export default class MeadowScene extends Phaser.Scene {
     if (!this.notificationContainer) return;
 
     this.notificationContainer.setPosition(
-      (this.scale.width - 210) / 2,
-      90
+      this.scale.width / 2,
+      95
     );
   }
 
@@ -1509,6 +2159,10 @@ export default class MeadowScene extends Phaser.Scene {
           this.inventoryOpen ||
           !pointer.isDown
         ) {
+          return;
+        }
+
+        if (this.handleMinimapNavigation(pointer)) {
           return;
         }
 
@@ -1611,6 +2265,7 @@ export default class MeadowScene extends Phaser.Scene {
 
     if (this.dialogueOpen || this.inventoryOpen) {
       this.updatePlayerAnimation(false);
+      this.updateDayNight(delta);
       return;
     }
 
