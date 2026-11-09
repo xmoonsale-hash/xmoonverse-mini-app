@@ -4,6 +4,10 @@ import { validatePlayerSession } from "../auth/session";
 
 type Env = {
   Bindings: {
+    ENVIRONMENT: string;
+    GAME_NAME: string;
+    TELEGRAM_BOT_TOKEN?: string;
+    WEB_APP_ORIGIN?: string;
     DB: D1Database;
   };
 };
@@ -368,26 +372,26 @@ export function registerGameRoutes(app: Hono<Env>) {
 
       const character = await c.env.DB.prepare(
         `SELECT
-           id,
-           player_id,
-           name,
-           character_class,
-           level,
-           experience,
-           skill_points,
-           health,
-           max_health,
-           mana,
-           max_mana,
-           strength,
-           agility,
-           intelligence,
-           vitality,
-           created_at,
-           updated_at,
-           region_id,
-           position_x,
-           position_y
+           game_characters.id,
+           game_characters.player_id,
+           game_characters.name,
+           game_characters.character_class,
+           game_characters.level,
+           game_characters.experience,
+           game_characters.skill_points,
+           game_characters.health,
+           game_characters.max_health,
+           game_characters.mana,
+           game_characters.max_mana,
+           game_characters.strength,
+           game_characters.agility,
+           game_characters.intelligence,
+           game_characters.vitality,
+           game_characters.created_at,
+           game_characters.updated_at,
+           player_locations.region_id,
+           player_locations.position_x,
+           player_locations.position_y
          FROM game_characters
          LEFT JOIN player_locations
            ON player_locations.character_id = game_characters.id
