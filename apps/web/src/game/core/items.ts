@@ -33,6 +33,38 @@ export interface GameItem {
   };
 }
 
+const ITEM_TYPES: readonly ItemType[] = [
+  "weapon",
+  "armor",
+  "accessory",
+  "material",
+  "consumable",
+  "quest"
+];
+
+const ITEM_RARITIES: readonly GameItem["rarity"][] = [
+  "common",
+  "uncommon",
+  "rare",
+  "epic",
+  "legendary"
+];
+
+const EQUIPMENT_SLOTS: readonly EquipmentSlot[] = [
+  "weapon",
+  "head",
+  "chest",
+  "legs",
+  "accessory"
+];
+
+const ITEM_STAT_KEYS = [
+  "attack",
+  "defense",
+  "health",
+  "mana"
+] as const;
+
 export const ITEM_CATALOG: GameItem[] = [
   {
     id: "wooden_sword",
@@ -160,25 +192,200 @@ export const ITEM_CATALOG: GameItem[] = [
   }
 ];
 
+function isEquipmentSlotCompatible(
+  type: ItemType,
+  slot: EquipmentSlot
+): boolean {
+  switch (type) {
+    case "weapon":
+      return slot === "weapon";
+
+    case "armor":
+      return (
+        slot === "head" ||
+        slot === "chest" ||
+        slot === "legs"
+      );
+
+    case "accessory":
+      return slot === "accessory";
+
+    default:
+      return false;
+  }
+}
+
+function validateItemDefinition(item: GameItem): void {
+  if (!item || typeof item !== "object") {
+    throw new Error("Invalid item definition");
+  }
+
+  if (
+    typeof item.id !== "string" ||
+    !item.id.trim()
+  ) {
+    throw new Error("Item ID is required");
+  }
+
+  if (
+    typeof item.name !== "string" ||
+    !item.name.trim()
+  ) {
+    throw new Error(`Invalid name for item "${item.id}"`);
+  }
+
+  if (typeof item.description !== "string") {
+    throw new Error(`Invalid description for item "${item.id}"`);
+  }
+
+  if (!ITEM_TYPES.includes(item.type)) {
+    throw new Error(`Invalid item type for "${item.id}"`);
+  }
+
+  if (!ITEM_RARITIES.includes(item.rarity)) {
+    throw new Error(`Invalid item rarity for "${item.id}"`);
+  }
+
+  if (
+    !Number.isSafeInteger(item.requiredLevel) ||
+    item.requiredLevel < 0
+  ) {
+    throw new Error(`Invalid required level for "${item.id}"`);
+  }
+
+  if (typeof item.stackable !== "boolean") {
+    throw new Error(`Invalid stackable setting for "${item.id}"`);
+  }
+
+  if (
+    !Number.isSafeInteger(item.maxStack) ||
+    item.maxStack < 1
+  ) {
+    throw new Error(`Invalid maximum stack for "${item.id}"`);
+  }
+
+  if (!item.stackable && item.maxStack !== 1) {
+    throw new Error(
+      `Non-stackable item "${item.id}" must have maxStack 1`
+    );
+  }
+
+  if (item.equipmentSlot !== undefined) {
+    if (!EQUIPMENT_SLOTS.includes(item.equipmentSlot)) {
+      throw new Error(`Invalid equipment slot for "${item.id}"`);
+    }
+
+    if (
+      !isEquipmentSlotCompatible(
+        item.type,
+        item.equipmentSlot
+      )
+    ) {
+      throw new Error(
+        `Incompatible equipment slot for "${item.id}"`
+      );
+    }
+  }
+
+  if (
+    (
+      item.type === "weapon" ||
+      item.type === "armor" ||
+      item.type === "accessory"
+    ) &&
+    item.equipmentSlot === undefined
+  ) {
+    throw new Error(
+      `Equipment slot is required for "${item.id}"`
+    );
+  }
+
+  if (item.stats !== undefined) {
+    if (
+      !item.stats ||
+      typeof item.stats !== "object" ||
+      Array.isArray(item.stats)
+    ) {
+      throw new Error(`Invalid stats for item "${item.id}"`);
+    }
+
+    for (const key of ITEM_STAT_KEYS) {
+      const value = item.stats[key];
+
+      if (
+        value !== undefined &&
+        (
+          typeof value !== "number" ||
+          !Number.isFinite(value) ||
+          value < 0
+        )
+      ) {
+        throw new Error(
+          `Invalid ${key} stat for item "${item.id}"`
+        );
+      }
+    }
+  }
+}
+
+function validateItemCatalog(): void {
+  const itemIds = new Set<string>();
+
+  for (const item of ITEM_CATALOG) {
+    validateItemDefinition(item);
+
+    if (itemIds.has(item.id)) {
+      throw new Error(`Duplicate item ID "${item.id}"`);
+    }
+
+    itemIds.add(item.id);
+  }
+}
+
+validateItemCatalog();
+
 export function getItemById(
   itemId: ItemId
 ): GameItem | undefined {
-  return ITEM_CATALOG.find((item) => item.id === itemId);
+  if (
+    typeof itemId !== "string" ||
+    !itemId.trim()
+  ) {
+    return undefined;
+  }
+
+  return ITEM_CATALOG.find(
+    (item) => item.id === itemId
+  );
 }
 
 export function getItemsByType(type: ItemType): GameItem[] {
-  return ITEM_CATALOG.filter((item) => item.type === type);
+  if (!ITEM_TYPES.includes(type)) {
+    return [];
+  }
+
+  return ITEM_CATALOG.filter(
+    (item) => item.type === type
+  );
 }
 
 export function getItemsByRarity(
   rarity: GameItem["rarity"]
 ): GameItem[] {
-  return ITEM_CATALOG.filter((item) => item.rarity === rarity);
+  if (!ITEM_RARITIES.includes(rarity)) {
+    return [];
+  }
+
+  return ITEM_CATALOG.filter(
+    (item) => item.rarity === rarity
+  );
 }
 
 export function getAllItems(): GameItem[] {
   return ITEM_CATALOG.map((item) => ({
     ...item,
-    stats: item.stats ? { ...item.stats } : undefined
+    stats: item.stats
+      ? { ...item.stats }
+      : undefined
   }));
 }
