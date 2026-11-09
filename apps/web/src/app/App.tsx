@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import GameCanvas from "../game/GameCanvas";
 import {
@@ -18,41 +19,12 @@ import {
 type Tab = "world" | "character" | "inventory" | "quests" | "social";
 
 const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: "world", label: "Мир", icon: "🌌" },
-  { id: "character", label: "Персонаж", icon: "🧙" },
-  { id: "inventory", label: "Инвентарь", icon: "🎒" },
-  { id: "quests", label: "Задания", icon: "📜" },
-  { id: "social", label: "Сообщество", icon: "👥" },
+  { id: "world", label: "Мир", icon: "◉" },
+  { id: "character", label: "Персонаж", icon: "♟" },
+  { id: "inventory", label: "Инвентарь", icon: "▣" },
+  { id: "quests", label: "Задания", icon: "▤" },
+  { id: "social", label: "Сообщество", icon: "♧" },
 ];
-
-function getAuthMessage(result: TelegramAuthResult | null): string {
-  if (!result) {
-    return "Проверка авторизации...";
-  }
-
-  if (result.ok) {
-    return "Профиль игрока загружен";
-  }
-
-  switch (result.error) {
-    case "not_in_telegram":
-      return "Откройте приложение через Telegram";
-    case "missing_init_data":
-      return "Telegram не предоставил данные авторизации";
-    case "api_not_configured":
-      return "Ожидается подключение API";
-    case "network_error":
-      return "Не удалось связаться с сервером";
-    case "authentication_failed":
-      return result.status
-        ? `Ошибка авторизации · ${result.status}`
-        : "Ошибка авторизации";
-    case "invalid_response":
-      return "Сервер вернул некорректный ответ";
-    default:
-      return "Статус авторизации неизвестен";
-  }
-}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("world");
@@ -117,98 +89,92 @@ export default function App() {
   }, [activeTab]);
 
   const handleTabChange = (tab: Tab) => {
-    if (activeTab === tab) {
-      return;
-    }
+    if (activeTab === tab) return;
 
     triggerTelegramSelection();
     setActiveTab(tab);
   };
 
-  const authenticatedUser =
-    authResult?.ok === true ? authResult.data.user : null;
-
   const authenticatedPlayer =
     authResult?.ok === true ? authResult.data.player : null;
 
   const playerLabel = authenticatedPlayer
-    ? authenticatedPlayer.username || authenticatedUser?.first_name || "Игрок"
-    : telegram.isTelegram
-      ? "Не авторизован"
-      : "Гостевой режим";
+    ? authenticatedPlayer.username ||
+      (authResult?.ok === true
+        ? authResult.data.user.first_name
+        : "Игрок")
+    : "Путник";
+
+  const activeItem = tabs.find((tab) => tab.id === activeTab);
 
   return (
     <main className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark">✦</span>
-          <div>
-            <strong>xMoonVerse</strong>
-            <small>REALM ONLINE</small>
-          </div>
-        </div>
-
-        <div className="player-status">
-          <span
-            className="online-dot"
-            style={{
-              opacity: authenticatedPlayer ? 1 : 0.45,
-            }}
-          />
-          <span>{playerLabel}</span>
-        </div>
-      </header>
-
-      <section className="game-header">
-        <div>
-          <p className="eyebrow">YOUR ADVENTURE BEGINS</p>
-          <h1>Мир xMoonVerse</h1>
-          <p className="subtitle">
-            Исследуй мир, развивай персонажа и создавай собственную историю.
-          </p>
-
-          <div className="environment-status">
-            {telegram.isTelegram
-              ? `Telegram · ${telegram.platform} · ${telegram.version}`
-              : "Browser mode"}
+      <section className="game-stage">
+        <header className="world-brand">
+          <div className="brand-emblem" aria-hidden="true">
+            ☾
           </div>
 
-          <div className="environment-status">
-            {telegram.isTelegram
-              ? getAuthMessage(authResult)
-              : "Авторизация Telegram будет доступна при запуске через бота"}
+          <div className="brand-copy">
+            <strong>
+              xMoon<span>Verse</span>
+            </strong>
+            <small>REALM</small>
           </div>
-        </div>
+
+          <div className="player-status" title="Текущий профиль">
+            <span className="player-status-dot" />
+            <span>{playerLabel}</span>
+          </div>
+        </header>
+
+        <section className="game-content" aria-label="Игровая область">
+          {activeTab === "world" ? (
+            <GameCanvas />
+          ) : (
+            <div className="section-screen">
+              <div className="section-screen-glow" />
+
+              <div className="section-screen-content">
+                <div className="section-screen-icon" aria-hidden="true">
+                  {activeItem?.icon}
+                </div>
+
+                <p className="section-eyebrow">XMOONVERSE REALM</p>
+                <h1>{activeItem?.label}</h1>
+
+                <p className="section-description">
+                  Этот раздел будет подключён на соответствующем этапе
+                  разработки. Его оформление будет выполнено в едином
+                  стиле игрового мира.
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
       </section>
 
-      <section className="game-content">
-        {activeTab === "world" ? (
-          <GameCanvas />
-        ) : (
-          <div className="placeholder-panel">
-            <span className="placeholder-icon">
-              {tabs.find((tab) => tab.id === activeTab)?.icon}
-            </span>
-            <h2>{tabs.find((tab) => tab.id === activeTab)?.label}</h2>
-            <p>
-              Этот раздел будет реализован на следующих этапах разработки.
-            </p>
-          </div>
-        )}
-      </section>
+      <nav className="bottom-navigation" aria-label="Основная навигация">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
 
-      <nav className="bottom-navigation">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            className={activeTab === tab.id ? "nav-item active" : "nav-item"}
-            onClick={() => handleTabChange(tab.id)}
-            type="button"
-          >
-            <span className="nav-icon">{tab.icon}</span>
-            <span className="nav-label">{tab.label}</span>
-          </button>
-        ))}
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={isActive ? "nav-item active" : "nav-item"}
+              aria-current={isActive ? "page" : undefined}
+              aria-label={tab.label}
+              onClick={() => handleTabChange(tab.id)}
+            >
+              <span className="nav-icon" aria-hidden="true">
+                {tab.icon}
+              </span>
+              <span className="nav-label">{tab.label}</span>
+              {isActive && <span className="nav-active-indicator" />}
+            </button>
+          );
+        })}
       </nav>
     </main>
   );
