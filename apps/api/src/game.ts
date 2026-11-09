@@ -313,16 +313,77 @@ export function registerGameRoutes(app: Hono<Env>) {
     const characterId = crypto.randomUUID();
 
     try {
-      const existing = await c.env.DB.prepare(
-        `SELECT id
-         FROM game_characters
-         WHERE player_id = ?
-         LIMIT 1`
-      )
-        .bind(player.playerId)
-        .first<{ id: string }>();
+      await c.env.DB.batch([
+        c.env.DB.prepare(
+          `INSERT INTO game_characters (
+             id,
+             player_id,
+             name,
+             character_class,
+             level,
+             experience,
+             skill_points,
+             health,
+             max_health,
+             mana,
+             max_mana,
+             strength,
+             agility,
+             intelligence,
+             vitality,
+             created_at,
+             updated_at
+           )
+           VALUES (?, ?, ?, ?, 1, 0, 0, 100, 100, 50, 50, 10, 10, 10, 10, ?, ?)`
+        ).bind(
+          characterId,
+          player.playerId,
+          name,
+          characterClass,
+          now,
+          now
+        ),
 
-      if (existing) {
+        c.env.DB.prepare(
+          `INSERT INTO player_locations (
+             character_id,
+             region_id,
+             position_x,
+             position_y,
+             updated_at
+           )
+           VALUES (?, ?, ?, ?, ?)`
+        ).bind(
+          characterId,
+          DEFAULT_LOCATION.regionId,
+          DEFAULT_LOCATION.x,
+          DEFAULT_LOCATION.y,
+          now
+        ),
+      ]);
+    } catch {
+      let existingCharacter: { id: string } | null = null;
+
+      try {
+        existingCharacter = await c.env.DB.prepare(
+          `SELECT id
+           FROM game_characters
+           WHERE player_id = ?
+           LIMIT 1`
+        )
+          .bind(player.playerId)
+          .first<{ id: string }>();
+      } catch {
+        return c.json(
+          {
+            success: false,
+            error: "Unable to create character",
+          },
+          503
+        );
+      }
+
+      if (existingCharacter) {
         return c.json(
           {
             success: false,
@@ -332,61 +393,16 @@ export function registerGameRoutes(app: Hono<Env>) {
         );
       }
 
-      const result = await c.env.DB.prepare(
-        `INSERT INTO game_characters (
-           id,
-           player_id,
-           name,
-           character_class,
-           level,
-           experience,
-           skill_points,
-           health,
-           max_health,
-           mana,
-           max_mana,
-           strength,
-           agility,
-           intelligence,
-           vitality,
-           created_at,
-           updated_at
-         )
-         VALUES (?, ?, ?, ?, 1, 0, 0, 100, 100, 50, 50, 10, 10, 10, 10, ?, ?)`
-      )
-        .bind(
-          characterId,
-          player.playerId,
-          name,
-          characterClass,
-          now,
-          now
-        )
-        .run();
+      return c.json(
+        {
+          success: false,
+          error: "Unable to create character",
+        },
+        503
+      );
+    }
 
-      if (result.meta.changes !== 1) {
-        throw new Error("Character creation failed");
-      }
-
-      await c.env.DB.prepare(
-        `INSERT INTO player_locations (
-           character_id,
-           region_id,
-           position_x,
-           position_y,
-           updated_at
-         )
-         VALUES (?, ?, ?, ?, ?)`
-      )
-        .bind(
-          characterId,
-          DEFAULT_LOCATION.regionId,
-          DEFAULT_LOCATION.x,
-          DEFAULT_LOCATION.y,
-          now
-        )
-        .run();
-
+    try {
       const character = await c.env.DB.prepare(
         `SELECT
            game_characters.id,
@@ -438,7 +454,7 @@ export function registerGameRoutes(app: Hono<Env>) {
       return c.json(
         {
           success: false,
-          error: "Unable to create character",
+          error: "Unable to load created character",
         },
         503
       );
