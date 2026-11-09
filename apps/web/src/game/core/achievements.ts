@@ -1,3 +1,4 @@
+
 import type { ItemId } from "@xmoonverse/shared";
 
 export type AchievementCategory =
@@ -100,31 +101,195 @@ export const ACHIEVEMENT_CATALOG: AchievementDefinition[] = [
   }
 ];
 
+const ACHIEVEMENT_CATEGORIES: readonly AchievementCategory[] = [
+  "combat",
+  "exploration",
+  "gathering",
+  "progression",
+  "crafting",
+  "social"
+];
+
+function cloneAchievement(
+  achievement: AchievementDefinition
+): AchievementDefinition {
+  return {
+    ...achievement,
+    itemRewards: achievement.itemRewards.map((reward) => ({
+      ...reward
+    }))
+  };
+}
+
+function validateAchievementDefinition(
+  achievement: AchievementDefinition
+): void {
+  if (
+    !achievement.id ||
+    typeof achievement.id !== "string" ||
+    !achievement.id.trim()
+  ) {
+    throw new Error("Achievement ID is required");
+  }
+
+  if (
+    !achievement.name ||
+    typeof achievement.name !== "string" ||
+    !achievement.name.trim()
+  ) {
+    throw new Error(
+      `Achievement "${achievement.id}" must have a name`
+    );
+  }
+
+  if (
+    !ACHIEVEMENT_CATEGORIES.includes(achievement.category)
+  ) {
+    throw new Error(
+      `Achievement "${achievement.id}" has an invalid category`
+    );
+  }
+
+  if (
+    !Number.isSafeInteger(achievement.targetAmount) ||
+    achievement.targetAmount <= 0
+  ) {
+    throw new Error(
+      `Achievement "${achievement.id}" has an invalid target amount`
+    );
+  }
+
+  if (
+    !Number.isSafeInteger(achievement.experienceReward) ||
+    achievement.experienceReward < 0
+  ) {
+    throw new Error(
+      `Achievement "${achievement.id}" has an invalid experience reward`
+    );
+  }
+
+  if (!Array.isArray(achievement.itemRewards)) {
+    throw new Error(
+      `Achievement "${achievement.id}" has invalid item rewards`
+    );
+  }
+
+  for (const reward of achievement.itemRewards) {
+    if (
+      !reward.itemId ||
+      typeof reward.itemId !== "string" ||
+      !reward.itemId.trim()
+    ) {
+      throw new Error(
+        `Achievement "${achievement.id}" has an invalid reward item ID`
+      );
+    }
+
+    if (
+      !Number.isSafeInteger(reward.quantity) ||
+      reward.quantity <= 0
+    ) {
+      throw new Error(
+        `Achievement "${achievement.id}" has an invalid reward quantity`
+      );
+    }
+  }
+}
+
+function validateAchievementProgress(
+  progress: AchievementProgress,
+  achievement: AchievementDefinition
+): void {
+  if (!progress || typeof progress !== "object") {
+    throw new Error("Achievement progress is required");
+  }
+
+  if (progress.achievementId !== achievement.id) {
+    throw new Error("Achievement progress ID mismatch");
+  }
+
+  if (
+    !Number.isSafeInteger(progress.currentAmount) ||
+    progress.currentAmount < 0 ||
+    progress.currentAmount > achievement.targetAmount
+  ) {
+    throw new Error("Invalid achievement progress amount");
+  }
+
+  if (
+    typeof progress.unlocked !== "boolean" ||
+    typeof progress.claimed !== "boolean"
+  ) {
+    throw new Error("Invalid achievement progress status");
+  }
+
+  if (
+    progress.unlocked &&
+    progress.currentAmount < achievement.targetAmount
+  ) {
+    throw new Error(
+      "Unlocked achievement has incomplete progress"
+    );
+  }
+
+  if (
+    !progress.unlocked &&
+    progress.currentAmount >= achievement.targetAmount
+  ) {
+    throw new Error(
+      "Completed achievement must be unlocked"
+    );
+  }
+
+  if (progress.claimed && !progress.unlocked) {
+    throw new Error(
+      "Achievement reward cannot be claimed before unlocking"
+    );
+  }
+}
+
 export function getAchievementById(
   achievementId: string
 ): AchievementDefinition | undefined {
-  return ACHIEVEMENT_CATALOG.find(
-    (achievement) => achievement.id === achievementId
+  if (
+    typeof achievementId !== "string" ||
+    !achievementId.trim()
+  ) {
+    return undefined;
+  }
+
+  const achievement = ACHIEVEMENT_CATALOG.find(
+    (entry) => entry.id === achievementId
   );
+
+  return achievement
+    ? cloneAchievement(achievement)
+    : undefined;
 }
 
 export function getAchievementsByCategory(
   category: AchievementCategory
 ): AchievementDefinition[] {
-  return ACHIEVEMENT_CATALOG.filter(
-    (achievement) => achievement.category === category
-  );
+  if (!ACHIEVEMENT_CATEGORIES.includes(category)) {
+    return [];
+  }
+
+  return ACHIEVEMENT_CATALOG
+    .filter((achievement) => achievement.category === category)
+    .map(cloneAchievement);
 }
 
 export function createAchievementProgress(
   achievementId: string
 ): AchievementProgress {
-  if (!getAchievementById(achievementId)) {
+  const achievement = getAchievementById(achievementId);
+
+  if (!achievement) {
     throw new Error("Unknown achievement");
   }
 
   return {
-    achievementId,
+    achievementId: achievement.id,
     currentAmount: 0,
     unlocked: false,
     claimed: false
@@ -135,26 +300,37 @@ export function updateAchievementProgress(
   progress: AchievementProgress,
   amount: number
 ): AchievementProgress {
+  if (
+    !Number.isSafeInteger(amount) ||
+    amount < 0
+  ) {
+    throw new Error(
+      "Progress amount must be a non-negative safe integer"
+    );
+  }
+
   const achievement = getAchievementById(
-    progress.achievementId
+    progress?.achievementId
   );
 
   if (!achievement) {
     throw new Error("Unknown achievement");
   }
 
-  if (!Number.isInteger(amount) || amount < 0) {
-    throw new Error("Progress amount must be non-negative");
-  }
+  validateAchievementDefinition(achievement);
+  validateAchievementProgress(progress, achievement);
 
-  if (progress.unlocked) {
+  if (progress.unlocked || amount === 0) {
     return { ...progress };
   }
 
-  const currentAmount = Math.min(
-    achievement.targetAmount,
-    progress.currentAmount + amount
-  );
+  const remainingAmount =
+    achievement.targetAmount - progress.currentAmount;
+
+  const currentAmount =
+    amount >= remainingAmount
+      ? achievement.targetAmount
+      : progress.currentAmount + amount;
 
   return {
     ...progress,
