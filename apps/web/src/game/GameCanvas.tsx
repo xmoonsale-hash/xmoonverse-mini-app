@@ -6,27 +6,45 @@ import MeadowScene from "./scenes/MeadowScene";
 type GraphicsMode = "performance" | "standard";
 
 const COLORS = {
-  background: "#101026",
-  panel: "rgba(19, 18, 43, 0.96)",
-  border: "rgba(196, 167, 255, 0.25)",
-  accent: "#b99aff",
-  text: "#ffffff",
-  muted: "#b8b2d0",
+  background: "#080319",
+  panel: "rgba(18, 5, 43, 0.97)",
+  border: "rgba(190, 104, 255, 0.85)",
+  accent: "#c58aff",
+  text: "#fff7ff",
+  muted: "#c5addf",
   danger: "#ff7777",
+  glow: "0 0 8px rgba(190,104,255,.9), 0 0 22px rgba(139,43,255,.55)",
 };
 
 const buttonStyle: React.CSSProperties = {
+  display: "grid",
+  width: "42px",
+  height: "42px",
+  minWidth: "42px",
   minHeight: "42px",
-  padding: "0 13px",
+  padding: 0,
+  placeItems: "center",
   border: `1px solid ${COLORS.border}`,
-  borderRadius: "11px",
-  background: "rgba(255,255,255,0.07)",
+  borderRadius: "13px",
+  background: "linear-gradient(145deg, #351064, #13052f)",
   color: COLORS.text,
-  fontSize: "13px",
-  fontWeight: 600,
+  fontSize: "19px",
+  fontWeight: 700,
   cursor: "pointer",
   touchAction: "manipulation",
   WebkitTapHighlightColor: "transparent",
+  boxShadow: COLORS.glow,
+};
+
+const panelStyle: React.CSSProperties = {
+  border: `1px solid ${COLORS.border}`,
+  borderRadius: "17px",
+  background:
+    "linear-gradient(145deg, rgba(37,12,77,.98), rgba(11,3,31,.98))",
+  color: COLORS.text,
+  boxShadow: COLORS.glow,
+  backdropFilter: "blur(16px)",
+  WebkitBackdropFilter: "blur(16px)",
 };
 
 export default function GameCanvas() {
@@ -47,13 +65,11 @@ export default function GameCanvas() {
   const [vibrationEnabled, setVibrationEnabled] = useState(true);
   const [graphicsMode, setGraphicsMode] =
     useState<GraphicsMode>("standard");
-  const [fps, setFps] = useState(0);
   const [isPortrait, setIsPortrait] = useState(false);
   const [contextLost, setContextLost] = useState(false);
 
   const toggleFullscreen = useCallback(async () => {
     const container = containerRef.current;
-
     if (!container) return;
 
     if (isFullscreen) {
@@ -68,7 +84,6 @@ export default function GameCanvas() {
         fallbackFullscreenRef.current = false;
         setIsFullscreen(false);
       }
-
       return;
     }
 
@@ -79,7 +94,7 @@ export default function GameCanvas() {
         setIsFullscreen(true);
         return;
       } catch {
-        // Некоторые мобильные браузеры не поддерживают fullscreen API.
+        // Используем визуальный fullscreen для мобильных браузеров.
       }
     }
 
@@ -89,7 +104,6 @@ export default function GameCanvas() {
 
   const pauseGame = useCallback((source: "user" | "lifecycle") => {
     const game = gameRef.current;
-
     if (!game || destroyedRef.current) return;
 
     if (source === "user") {
@@ -104,7 +118,6 @@ export default function GameCanvas() {
 
   const resumeGame = useCallback((source: "user" | "lifecycle") => {
     const game = gameRef.current;
-
     if (!game || destroyedRef.current) return;
 
     if (source === "user") {
@@ -113,9 +126,7 @@ export default function GameCanvas() {
       lifecyclePausedRef.current = false;
     }
 
-    if (userPausedRef.current || lifecyclePausedRef.current) {
-      return;
-    }
+    if (userPausedRef.current || lifecyclePausedRef.current) return;
 
     game.loop.wake();
     setIsPaused(false);
@@ -133,10 +144,8 @@ export default function GameCanvas() {
     const nextMuted = !muted;
     setMuted(nextMuted);
 
-    const game = gameRef.current;
-
-    if (game) {
-      game.sound.mute = nextMuted;
+    if (gameRef.current) {
+      gameRef.current.sound.mute = nextMuted;
     }
   }, [muted]);
 
@@ -150,10 +159,9 @@ export default function GameCanvas() {
 
     setGraphicsMode(nextMode);
 
-    const game = gameRef.current;
-
-    if (game) {
-      game.loop.targetFps = nextMode === "performance" ? 30 : 60;
+    if (gameRef.current) {
+      gameRef.current.loop.targetFps =
+        nextMode === "performance" ? 30 : 60;
     }
   }, [graphicsMode]);
 
@@ -170,13 +178,11 @@ export default function GameCanvas() {
 
   useEffect(() => {
     const container = containerRef.current;
-
     if (!container) return;
 
     destroyedRef.current = false;
 
     let game: Phaser.Game | null = null;
-    let fpsInterval: ReturnType<typeof setInterval> | undefined;
     let resizeObserver: ResizeObserver | undefined;
 
     const preventBrowserAction = (event: Event) => {
@@ -218,24 +224,18 @@ export default function GameCanvas() {
     };
 
     const handleFullscreenChange = () => {
-      const nativeFullscreen =
-        document.fullscreenElement === container;
-
       setIsFullscreen(
-        nativeFullscreen || fallbackFullscreenRef.current
+        document.fullscreenElement === container ||
+          fallbackFullscreenRef.current
       );
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.key === "Escape" &&
-        fallbackFullscreenRef.current
-      ) {
-        fallbackFullscreenRef.current = false;
-        setIsFullscreen(false);
-      }
-
       if (event.key === "Escape") {
+        if (fallbackFullscreenRef.current) {
+          fallbackFullscreenRef.current = false;
+          setIsFullscreen(false);
+        }
         setShowSettings(false);
       }
     };
@@ -294,7 +294,6 @@ export default function GameCanvas() {
       "fullscreenchange",
       handleFullscreenChange
     );
-
     document.addEventListener("keydown", handleKeyDown);
     document.addEventListener(
       "visibilitychange",
@@ -329,7 +328,6 @@ export default function GameCanvas() {
         },
 
         disableContextMenu: true,
-
         scene: [MeadowScene],
 
         render: {
@@ -365,7 +363,6 @@ export default function GameCanvas() {
           "webglcontextlost",
           handleWebGLContextLost
         );
-
         canvas.addEventListener(
           "webglcontextrestored",
           handleWebGLContextRestored
@@ -374,21 +371,9 @@ export default function GameCanvas() {
 
       game.events.once("ready", () => {
         if (destroyedRef.current) return;
-
         setIsLoading(false);
         setLoadingError("");
       });
-
-      fpsInterval = setInterval(() => {
-        if (
-          game &&
-          !destroyedRef.current &&
-          !isPaused
-        ) {
-          const actualFps = Math.round(game.loop.actualFps);
-          setFps(Number.isFinite(actualFps) ? actualFps : 0);
-        }
-      }, 1000);
 
       if ("ResizeObserver" in window) {
         resizeObserver = new ResizeObserver(() => {
@@ -410,18 +395,12 @@ export default function GameCanvas() {
 
     return () => {
       destroyedRef.current = true;
-
-      if (fpsInterval) {
-        clearInterval(fpsInterval);
-      }
-
       resizeObserver?.disconnect();
 
       document.removeEventListener(
         "fullscreenchange",
         handleFullscreenChange
       );
-
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener(
         "visibilitychange",
@@ -450,7 +429,6 @@ export default function GameCanvas() {
           "webglcontextlost",
           handleWebGLContextLost
         );
-
         canvas.removeEventListener(
           "webglcontextrestored",
           handleWebGLContextRestored
@@ -462,17 +440,14 @@ export default function GameCanvas() {
       lifecyclePausedRef.current = false;
 
       game?.destroy(true);
-
       gameRef.current = null;
     };
 
-    // Game is intentionally initialized only once per component mount.
+    // Phaser is intentionally initialized once per component mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const controlClick = (
-    callback: () => void
-  ) => ({
+  const controlClick = (callback: () => void) => ({
     "data-game-control": true,
     onPointerDown: (event: React.PointerEvent) => {
       event.stopPropagation();
@@ -482,6 +457,22 @@ export default function GameCanvas() {
       callback();
     },
   });
+
+  const overlayStyle: React.CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    zIndex: 40,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "14px",
+    padding: "24px",
+    background: "rgba(8, 3, 25, 0.94)",
+    color: COLORS.text,
+    textAlign: "center",
+    pointerEvents: "auto",
+  };
 
   return (
     <div
@@ -509,39 +500,37 @@ export default function GameCanvas() {
         isolation: "isolate",
       }}
     >
-      {/* Loading screen */}
       {isLoading && (
         <div
           role="status"
           aria-live="polite"
           style={{
-            position: "absolute",
-            inset: 0,
+            ...overlayStyle,
             zIndex: 30,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "14px",
-            background: COLORS.background,
-            color: COLORS.text,
           }}
         >
           <div
             style={{
-              width: "42px",
-              height: "42px",
-              border: `3px solid ${COLORS.border}`,
+              width: "48px",
+              height: "48px",
+              border: "3px solid rgba(190,104,255,.25)",
               borderTopColor: COLORS.accent,
               borderRadius: "50%",
-              animation: "xmoon-spin 0.9s linear infinite",
+              animation: "xmoon-spin .9s linear infinite",
+              boxShadow: COLORS.glow,
             }}
           />
-          <strong style={{ fontSize: "16px" }}>
+          <strong
+            style={{
+              fontSize: "21px",
+              letterSpacing: "1px",
+              textShadow: "0 0 15px #a84dff",
+            }}
+          >
             xMoonVerse
           </strong>
           <span style={{ color: COLORS.muted, fontSize: "13px" }}>
-            Запускаем игровой мир...
+            Открываем врата игрового мира...
           </span>
           <style>
             {`
@@ -553,148 +542,123 @@ export default function GameCanvas() {
         </div>
       )}
 
-      {/* Error screen */}
       {loadingError && !contextLost && (
         <div
           data-game-control
           role="alert"
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 40,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "14px",
-            padding: "24px",
-            background: "rgba(16,16,38,0.96)",
-            color: COLORS.text,
-            textAlign: "center",
-            pointerEvents: "auto",
-          }}
+          style={overlayStyle}
         >
-          <span style={{ fontSize: "30px" }}>⚠</span>
-          <strong>Проблема с игрой</strong>
+          <span
+            style={{
+              fontSize: "36px",
+              color: COLORS.accent,
+              textShadow: "0 0 18px #a84dff",
+            }}
+          >
+            ✧
+          </span>
+          <strong style={{ fontSize: "19px" }}>
+            Игровой мир недоступен
+          </strong>
           <span style={{ color: COLORS.muted, fontSize: "13px" }}>
             {loadingError}
           </span>
           <button
             type="button"
-            style={buttonStyle}
+            style={{
+              ...buttonStyle,
+              width: "auto",
+              padding: "0 20px",
+              fontSize: "13px",
+            }}
             {...controlClick(() => window.location.reload())}
           >
-            Перезагрузить игру
+            Перезагрузить
           </button>
         </div>
       )}
 
-      {/* Top control bar */}
+      {/* Compact game controls */}
       <div
         data-game-control
         style={{
           position: "absolute",
-          top: "max(12px, env(safe-area-inset-top))",
-          left: "max(12px, env(safe-area-inset-left))",
-          right: "max(12px, env(safe-area-inset-right))",
+          top: "12px",
+          left: "12px",
           zIndex: 20,
           display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
           gap: "8px",
           pointerEvents: "none",
         }}
       >
-        <div
+        <button
+          type="button"
+          aria-label={isPaused ? "Продолжить игру" : "Пауза"}
           style={{
-            display: "flex",
-            gap: "7px",
+            ...buttonStyle,
             pointerEvents: "auto",
           }}
+          {...controlClick(() => {
+            vibrate();
+            togglePause();
+          })}
         >
-          <button
-            type="button"
-            aria-label={isPaused ? "Продолжить игру" : "Пауза"}
-            style={buttonStyle}
-            {...controlClick(() => {
-              vibrate();
-              togglePause();
-            })}
-          >
-            {isPaused ? "▶ Продолжить" : "Ⅱ Пауза"}
-          </button>
+          {isPaused ? "▶" : "Ⅱ"}
+        </button>
 
-          <button
-            type="button"
-            aria-label="Настройки игры"
-            style={buttonStyle}
-            {...controlClick(() => {
-              vibrate();
-              setShowSettings((value) => !value);
-            })}
-          >
-            ⚙
-          </button>
-        </div>
-
-        <div
+        <button
+          type="button"
+          aria-label="Настройки"
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
+            ...buttonStyle,
             pointerEvents: "auto",
           }}
+          {...controlClick(() => {
+            vibrate();
+            setShowSettings((value) => !value);
+          })}
         >
-          <span
-            style={{
-              padding: "7px 9px",
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: "9px",
-              background: "rgba(16,16,38,0.8)",
-              color: COLORS.muted,
-              fontSize: "11px",
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {fps} FPS
-          </span>
-
-          <button
-            type="button"
-            aria-label={
-              isFullscreen ? "Выйти из fullscreen" : "На весь экран"
-            }
-            style={buttonStyle}
-            {...controlClick(() => {
-              vibrate();
-              void toggleFullscreen();
-            })}
-          >
-            {isFullscreen ? "× Выйти" : "⛶"}
-          </button>
-        </div>
+          ⚙
+        </button>
       </div>
 
-      {/* Settings panel */}
+      {/* Fullscreen control */}
+      <button
+        data-game-control
+        type="button"
+        aria-label={
+          isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"
+        }
+        style={{
+          ...buttonStyle,
+          position: "absolute",
+          top: "12px",
+          right: "12px",
+          zIndex: 20,
+        }}
+        {...controlClick(() => {
+          vibrate();
+          void toggleFullscreen();
+        })}
+      >
+        {isFullscreen ? "×" : "⛶"}
+      </button>
+
+      {/* Settings */}
       {showSettings && (
         <div
           data-game-control
           style={{
             position: "absolute",
-            top: "68px",
-            left: "max(12px, env(safe-area-inset-left))",
+            top: "64px",
+            left: "12px",
             zIndex: 25,
-            width: "min(280px, calc(100% - 24px))",
+            width: "min(290px, calc(100% - 24px))",
             display: "flex",
             flexDirection: "column",
-            gap: "12px",
+            gap: "13px",
             padding: "16px",
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: "16px",
-            background: COLORS.panel,
-            color: COLORS.text,
-            boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
-            backdropFilter: "blur(16px)",
+            ...panelStyle,
             pointerEvents: "auto",
           }}
         >
@@ -703,15 +667,23 @@ export default function GameCanvas() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+              paddingBottom: "10px",
+              borderBottom: "1px solid rgba(190,104,255,.25)",
             }}
           >
             <strong style={{ fontSize: "15px" }}>
-              Настройки
+              Настройки мира
             </strong>
             <button
               type="button"
               aria-label="Закрыть настройки"
-              style={{ ...buttonStyle, minHeight: "34px" }}
+              style={{
+                ...buttonStyle,
+                width: "34px",
+                minWidth: "34px",
+                height: "34px",
+                minHeight: "34px",
+              }}
               {...controlClick(() => setShowSettings(false))}
             >
               ×
@@ -722,7 +694,7 @@ export default function GameCanvas() {
             <span>Звук</span>
             <button
               type="button"
-              style={buttonStyle}
+              style={settingButtonStyle}
               {...controlClick(toggleMute)}
             >
               {muted ? "Выключен" : "Включён"}
@@ -733,7 +705,7 @@ export default function GameCanvas() {
             <span>Вибрация</span>
             <button
               type="button"
-              style={buttonStyle}
+              style={settingButtonStyle}
               {...controlClick(toggleVibration)}
             >
               {vibrationEnabled ? "Включена" : "Выключена"}
@@ -744,7 +716,7 @@ export default function GameCanvas() {
             <span>Графика</span>
             <button
               type="button"
-              style={buttonStyle}
+              style={settingButtonStyle}
               {...controlClick(toggleGraphics)}
             >
               {graphicsMode === "standard"
@@ -753,18 +725,19 @@ export default function GameCanvas() {
             </button>
           </div>
 
-          <div
+          <p
             style={{
-              paddingTop: "8px",
-              borderTop: `1px solid ${COLORS.border}`,
+              margin: "2px 0 0",
+              paddingTop: "10px",
+              borderTop: "1px solid rgba(190,104,255,.2)",
               color: COLORS.muted,
               fontSize: "11px",
-              lineHeight: 1.5,
+              lineHeight: 1.55,
             }}
           >
-            Экономичный режим ограничивает частоту обновления
-            до 30 FPS для снижения нагрузки на устройство.
-          </div>
+            Экономичный режим ограничивает частоту обновления до 30 FPS
+            для снижения нагрузки на устройство.
+          </p>
         </div>
       )}
 
@@ -774,32 +747,52 @@ export default function GameCanvas() {
           data-game-control
           role="status"
           style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 15,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "14px",
-            background: "rgba(10, 9, 28, 0.72)",
-            color: COLORS.text,
-            backdropFilter: "blur(5px)",
-            pointerEvents: "auto",
+            ...overlayStyle,
+            zIndex: 35,
+            background: "rgba(8, 3, 25, .78)",
+            backdropFilter: "blur(7px)",
           }}
         >
-          <strong style={{ fontSize: "24px" }}>
+          <div
+            style={{
+              width: "72px",
+              height: "72px",
+              display: "grid",
+              placeItems: "center",
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: "23px",
+              background: "rgba(92,31,158,.25)",
+              color: COLORS.accent,
+              fontSize: "31px",
+              boxShadow: COLORS.glow,
+            }}
+          >
+            Ⅱ
+          </div>
+
+          <strong
+            style={{
+              fontSize: "25px",
+              textShadow: "0 0 15px #a84dff",
+            }}
+          >
             Пауза
           </strong>
+
           <span style={{ color: COLORS.muted, fontSize: "13px" }}>
             Игровой процесс приостановлен
           </span>
+
           <button
             type="button"
             style={{
               ...buttonStyle,
-              background: "rgba(185,154,255,0.2)",
-              borderColor: COLORS.accent,
+              display: "flex",
+              width: "auto",
+              minWidth: "170px",
+              padding: "0 20px",
+              gap: "9px",
+              fontSize: "13px",
             }}
             {...controlClick(() => resumeGame("user"))}
           >
@@ -808,51 +801,51 @@ export default function GameCanvas() {
         </div>
       )}
 
-      {/* WebGL recovery overlay */}
+      {/* WebGL recovery */}
       {contextLost && (
         <div
           role="status"
           style={{
-            position: "absolute",
-            inset: 0,
+            ...overlayStyle,
             zIndex: 45,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "12px",
-            padding: "24px",
-            background: COLORS.background,
-            color: COLORS.text,
-            textAlign: "center",
           }}
         >
-          <span style={{ fontSize: "30px" }}>⟳</span>
-          <strong>Восстанавливаем графику</strong>
+          <span
+            style={{
+              fontSize: "36px",
+              color: COLORS.accent,
+              textShadow: "0 0 18px #a84dff",
+            }}
+          >
+            ⟳
+          </span>
+          <strong style={{ fontSize: "19px" }}>
+            Восстанавливаем графику
+          </strong>
           <span style={{ color: COLORS.muted, fontSize: "13px" }}>
             Не закрывайте игру. Это может занять несколько секунд.
           </span>
         </div>
       )}
 
-      {/* Orientation hint */}
       {isFullscreen && isPortrait && (
         <div
           data-game-control
           style={{
             position: "absolute",
-            bottom: "max(12px, env(safe-area-inset-bottom))",
+            bottom: "max(14px, env(safe-area-inset-bottom))",
             left: "50%",
             zIndex: 12,
             transform: "translateX(-50%)",
-            padding: "9px 13px",
+            padding: "9px 14px",
             border: `1px solid ${COLORS.border}`,
-            borderRadius: "10px",
-            background: "rgba(16,16,38,0.88)",
+            borderRadius: "11px",
+            background: "rgba(18,5,43,.94)",
             color: COLORS.muted,
             fontSize: "11px",
             textAlign: "center",
             whiteSpace: "nowrap",
+            boxShadow: COLORS.glow,
             pointerEvents: "none",
           }}
         >
@@ -868,5 +861,19 @@ const settingRowStyle: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "space-between",
   gap: "10px",
+  color: COLORS.text,
   fontSize: "13px",
+};
+
+const settingButtonStyle: React.CSSProperties = {
+  minHeight: "36px",
+  padding: "0 11px",
+  border: `1px solid ${COLORS.border}`,
+  borderRadius: "10px",
+  background: "rgba(91,31,155,.35)",
+  color: COLORS.text,
+  fontSize: "11px",
+  fontWeight: 600,
+  cursor: "pointer",
+  touchAction: "manipulation",
 };
