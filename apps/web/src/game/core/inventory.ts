@@ -1,4 +1,28 @@
+
 import type { InventoryItem, ItemId } from "@xmoonverse/shared";
+import { getItemById } from "./items";
+
+function validateInventory(inventory: InventoryItem[]): void {
+  for (const entry of inventory) {
+    const definition = getItemById(entry.itemId);
+
+    if (!definition) {
+      throw new Error(`Unknown item "${entry.itemId}" in inventory`);
+    }
+
+    if (!Number.isInteger(entry.quantity) || entry.quantity <= 0) {
+      throw new Error(`Invalid quantity for item "${entry.itemId}"`);
+    }
+
+    if (entry.quantity > definition.maxStack) {
+      throw new Error(`Stack limit exceeded for item "${entry.itemId}"`);
+    }
+
+    if (!definition.stackable && entry.quantity !== 1) {
+      throw new Error(`Item "${entry.itemId}" cannot be stacked`);
+    }
+  }
+}
 
 export function addItem(
   inventory: InventoryItem[],
@@ -13,26 +37,73 @@ export function addItem(
     throw new Error("Quantity must be a positive integer");
   }
 
-  const existingItem = inventory.find(
-    (item) => item.itemId === itemId
-  );
+  validateInventory(inventory);
 
-  if (existingItem) {
-    return inventory.map((item) =>
-      item.itemId === itemId
-        ? { ...item, quantity: item.quantity + quantity }
-        : { ...item }
-    );
+  const definition = getItemById(itemId);
+
+  if (!definition) {
+    throw new Error(`Unknown item "${itemId}"`);
   }
 
-  return [
-    ...inventory.map((item) => ({ ...item })),
-    {
-      itemId,
-      quantity,
-      equipped: false
+  const result = inventory.map((entry) => ({ ...entry }));
+
+  if (!definition.stackable) {
+    if (quantity !== 1) {
+      throw new Error("Non-stackable items must be added one at a time");
     }
-  ];
+
+    if (result.some((entry) => entry.itemId === itemId)) {
+      throw new Error("This item is already present in inventory");
+    }
+
+    result.push({
+      itemId,
+      quantity: 1,
+      equipped: false
+    });
+
+    return result;
+  }
+
+  let remaining = quantity;
+
+  for (const entry of result) {
+    if (entry.itemId !== itemId || entry.equipped) {
+      continue;
+    }
+
+    const availableSpace = definition.maxStack - entry.quantity;
+
+    if (availableSpace <= 0) {
+      continue;
+    }
+
+    const added = Math.min(availableSpace, remaining);
+
+    entry.quantity += added;
+    remaining -= added;
+
+    if (remaining === 0) {
+      return result;
+    }
+  }
+
+  while (remaining > 0) {
+    const stackQuantity = Math.min(
+      definition.maxStack,
+      remaining
+    );
+
+    result.push({
+      itemId,
+      quantity: stackQuantity,
+      equipped: false
+    });
+
+    remaining -= stackQuantity;
+  }
+
+  return result;
 }
 
 export function removeItem(
@@ -44,21 +115,53 @@ export function removeItem(
     throw new Error("Quantity must be a positive integer");
   }
 
-  const existingItem = inventory.find(
-    (item) => item.itemId === itemId
-  );
+  validateInventory(inventory);
 
-  if (!existingItem || existingItem.quantity < quantity) {
-    throw new Error("Not enough items in inventory");
+  const definition = getItemById(itemId);
+
+  if (!definition) {
+    throw new Error(`Unknown item "${itemId}"`);
   }
 
-  return inventory
-    .map((item) =>
-      item.itemId === itemId
-        ? { ...item, quantity: item.quantity - quantity }
-        : { ...item }
-    )
-    .filter((item) => item.quantity > 0);
+  const availableQuantity = inventory.reduce(
+    (total, entry) =>
+      entry.itemId === itemId && !entry.equipped
+        ? total + entry.quantity
+        : total,
+    0
+  );
+
+  if (availableQuantity < quantity) {
+    throw new Error("Not enough unequipped items in inventory");
+  }
+
+  let remaining = quantity;
+
+  const result: InventoryItem[] = [];
+
+  for (const entry of inventory) {
+    const nextEntry = { ...entry };
+
+    if (
+      nextEntry.itemId === itemId &&
+      !nextEntry.equipped &&
+      remaining > 0
+    ) {
+      const removed = Math.min(
+        nextEntry.quantity,
+        remaining
+      );
+
+      nextEntry.quantity -= removed;
+      remaining -= removed;
+    }
+
+    if (nextEntry.quantity > 0) {
+      result.push(nextEntry);
+    }
+  }
+
+  return result;
 }
 
 export function getInventoryItemCount(
@@ -73,5 +176,7 @@ export function getInventoryItemCount(
 export function getUniqueInventoryItems(
   inventory: InventoryItem[]
 ): number {
-  return inventory.length;
+  return new Set(
+    inventory.map((item) => item.itemId)
+  ).size;
 }
