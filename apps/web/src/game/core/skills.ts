@@ -1,3 +1,4 @@
+
 import type { CharacterClass } from "@xmoonverse/shared";
 
 export type SkillCategory =
@@ -78,6 +79,67 @@ export const SKILL_CATALOG: SkillDefinition[] = [
   }
 ];
 
+const CHARACTER_CLASSES: readonly CharacterClass[] = [
+  "warrior",
+  "ranger",
+  "mage",
+  "adventurer"
+];
+
+function validateCharacterClass(
+  characterClass: CharacterClass
+): void {
+  if (!CHARACTER_CLASSES.includes(characterClass)) {
+    throw new Error("Invalid character class");
+  }
+}
+
+function validateCharacterLevel(characterLevel: number): void {
+  if (
+    !Number.isInteger(characterLevel) ||
+    characterLevel < 1
+  ) {
+    throw new Error("Character level must be a positive integer");
+  }
+}
+
+function validateCharacterSkills(skills: CharacterSkill[]): void {
+  if (!Array.isArray(skills)) {
+    throw new Error("Character skills must be an array");
+  }
+
+  const knownSkillIds = new Set<string>();
+
+  for (const skill of skills) {
+    if (
+      !skill ||
+      typeof skill !== "object" ||
+      typeof skill.skillId !== "string" ||
+      !skill.skillId.trim() ||
+      !Number.isInteger(skill.level) ||
+      skill.level < 1
+    ) {
+      throw new Error("Invalid character skill entry");
+    }
+
+    if (knownSkillIds.has(skill.skillId)) {
+      throw new Error(
+        `Duplicate character skill "${skill.skillId}"`
+      );
+    }
+
+    knownSkillIds.add(skill.skillId);
+
+    const definition = getSkillById(skill.skillId);
+
+    if (!definition || skill.level > definition.maxLevel) {
+      throw new Error(
+        `Invalid level for character skill "${skill.skillId}"`
+      );
+    }
+  }
+}
+
 export function getSkillById(
   skillId: string
 ): SkillDefinition | undefined {
@@ -89,9 +151,14 @@ export function getSkillById(
 export function getSkillsForClass(
   characterClass: CharacterClass
 ): SkillDefinition[] {
-  return SKILL_CATALOG.filter(
-    (skill) => skill.characterClasses.includes(characterClass)
-  );
+  validateCharacterClass(characterClass);
+
+  return SKILL_CATALOG
+    .filter((skill) => skill.characterClasses.includes(characterClass))
+    .map((skill) => ({
+      ...skill,
+      characterClasses: [...skill.characterClasses]
+    }));
 }
 
 export function canLearnSkill(
@@ -99,6 +166,9 @@ export function canLearnSkill(
   characterClass: CharacterClass,
   characterLevel: number
 ): boolean {
+  validateCharacterClass(characterClass);
+  validateCharacterLevel(characterLevel);
+
   const skill = getSkillById(skillId);
 
   return Boolean(
@@ -118,6 +188,17 @@ export function upgradeSkill(
   skills: CharacterSkill[];
   remainingSkillPoints: number;
 } {
+  validateCharacterSkills(skills);
+  validateCharacterClass(characterClass);
+  validateCharacterLevel(characterLevel);
+
+  if (
+    !Number.isInteger(availableSkillPoints) ||
+    availableSkillPoints < 0
+  ) {
+    throw new Error("Available skill points must be a non-negative integer");
+  }
+
   if (availableSkillPoints < 1) {
     throw new Error("Not enough skill points");
   }
@@ -148,10 +229,13 @@ export function upgradeSkill(
           ? { ...skill, level: skill.level + 1 }
           : { ...skill }
       )
-    : [...skills.map((skill) => ({ ...skill })), {
-        skillId,
-        level: 1
-      }];
+    : [
+        ...skills.map((skill) => ({ ...skill })),
+        {
+          skillId,
+          level: 1
+        }
+      ];
 
   return {
     skills: nextSkills,
