@@ -1,5 +1,13 @@
 
 import { Hono } from "hono";
+import type {
+  CharacterClass,
+  CreateCharacterResponse,
+  GameCharacter,
+  GameLocation,
+  GameStateResponse,
+  InventoryItem,
+} from "@xmoonverse/shared";
 import { validatePlayerSession } from "../auth/session";
 
 type Env = {
@@ -11,8 +19,6 @@ type Env = {
     DB: D1Database;
   };
 };
-
-type CharacterClass = "warrior" | "ranger" | "mage" | "adventurer";
 
 type CharacterRecord = {
   id: string;
@@ -38,13 +44,14 @@ type CharacterRecord = {
 };
 
 type InventoryRecord = {
+  id: string;
   item_id: string;
   quantity: number;
   is_equipped: number;
   created_at: number;
 };
 
-const DEFAULT_LOCATION = {
+const DEFAULT_LOCATION: GameLocation = {
   regionId: "greenhaven",
   x: 1200,
   y: 800,
@@ -60,6 +67,10 @@ const CHARACTER_CLASSES = new Set<CharacterClass>([
   "mage",
   "adventurer",
 ]);
+
+function getExperienceRequired(level: number): number {
+  return Math.floor(100 * Math.pow(level, 1.5));
+}
 
 function getBearerToken(authorization: string | undefined): string | null {
   const match = authorization?.match(/^Bearer ([a-f0-9]{64})$/);
@@ -79,7 +90,7 @@ async function getAuthenticatedPlayer(
   return validatePlayerSession(db, token);
 }
 
-function serializeCharacter(record: CharacterRecord) {
+function serializeCharacter(record: CharacterRecord): GameCharacter {
   return {
     id: record.id,
     playerId: record.player_id,
@@ -98,10 +109,21 @@ function serializeCharacter(record: CharacterRecord) {
     progression: {
       level: record.level,
       experience: record.experience,
+      experienceToNextLevel: getExperienceRequired(record.level),
       skillPoints: record.skill_points,
     },
     createdAt: record.created_at,
     updatedAt: record.updated_at,
+  };
+}
+
+function serializeInventoryItem(record: InventoryRecord): InventoryItem {
+  return {
+    id: record.id,
+    itemId: record.item_id,
+    quantity: record.quantity,
+    equipped: record.is_equipped === 1,
+    acquiredAt: record.created_at,
   };
 }
 
@@ -170,17 +192,19 @@ export function registerGameRoutes(app: Hono<Env>) {
         .first<CharacterRecord>();
 
       if (!character) {
-        return c.json({
+        const response: GameStateResponse = {
           success: true,
           hasCharacter: false,
           character: null,
           location: null,
           inventory: [],
-        });
+        };
+
+        return c.json(response);
       }
 
       const inventory = await c.env.DB.prepare(
-        `SELECT item_id, quantity, is_equipped, created_at
+        `SELECT id, item_id, quantity, is_equipped, created_at
          FROM inventory_items
          WHERE character_id = ?
          ORDER BY created_at ASC`
@@ -188,22 +212,21 @@ export function registerGameRoutes(app: Hono<Env>) {
         .bind(character.id)
         .all<InventoryRecord>();
 
-      return c.json({
+      const location: GameLocation = {
+        regionId: character.region_id ?? DEFAULT_LOCATION.regionId,
+        x: character.position_x ?? DEFAULT_LOCATION.x,
+        y: character.position_y ?? DEFAULT_LOCATION.y,
+      };
+
+      const response: GameStateResponse = {
         success: true,
         hasCharacter: true,
         character: serializeCharacter(character),
-        location: {
-          regionId: character.region_id ?? DEFAULT_LOCATION.regionId,
-          x: character.position_x ?? DEFAULT_LOCATION.x,
-          y: character.position_y ?? DEFAULT_LOCATION.y,
-        },
-        inventory: (inventory.results ?? []).map((item) => ({
-          itemId: item.item_id,
-          quantity: item.quantity,
-          equipped: item.is_equipped === 1,
-          acquiredAt: item.created_at,
-        })),
-      });
+        location,
+        inventory: (inventory.results ?? []).map(serializeInventoryItem),
+      };
+
+      return c.json(response);
     } catch {
       return c.json(
         {
@@ -309,6 +332,11 @@ export function registerGameRoutes(app: Hono<Env>) {
       );
     }
 
+    const request: { name: string; characterClass: CharacterClass } = {
+      name,
+      characterClass: characterClass as CharacterClass,
+    };
+
     const now = Math.floor(Date.now() / 1000);
     const characterId = crypto.randomUUID();
 
@@ -338,8 +366,8 @@ export function registerGameRoutes(app: Hono<Env>) {
         ).bind(
           characterId,
           player.playerId,
-          name,
-          characterClass,
+          request.name,
+          request.characterClass,
           now,
           now
         ),
@@ -438,18 +466,19 @@ export function registerGameRoutes(app: Hono<Env>) {
         throw new Error("Created character could not be loaded");
       }
 
-      return c.json(
-        {
-          success: true,
-          character: serializeCharacter(character),
-          location: {
-            regionId: character.region_id ?? DEFAULT_LOCATION.regionId,
-            x: character.position_x ?? DEFAULT_LOCATION.x,
-            y: character.position_y ?? DEFAULT_LOCATION.y,
-          },
-        },
-        201
-      );
+      const location: GameLocation = {
+        regionId: character.region_id ?? DEFAULT_LOCATION.regionId,
+        x: character.position_x ?? DEFAULT_LOCATION.x,
+        y: character.position_y ?? DEFAULT_LOCATION.y,
+      };
+
+      const response: CreateCharacterResponse = {
+        success: true,
+        character: serializeCharacter(character),
+        location,
+      };
+
+      return c.json(response, 201);
     } catch {
       return c.json(
         {
