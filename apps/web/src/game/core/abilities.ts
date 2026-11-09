@@ -1,3 +1,4 @@
+
 import type { CharacterClass } from "@xmoonverse/shared";
 import { getSkillById } from "./skills";
 
@@ -53,9 +54,111 @@ export const ABILITY_CATALOG: AbilityDefinition[] = [
   }
 ];
 
+const CHARACTER_CLASSES: readonly CharacterClass[] = [
+  "warrior",
+  "ranger",
+  "mage",
+  "adventurer"
+];
+
+function validateAbilityCatalog(): void {
+  const abilityIds = new Set<string>();
+
+  for (const ability of ABILITY_CATALOG) {
+    if (
+      !ability ||
+      typeof ability.id !== "string" ||
+      !ability.id.trim() ||
+      typeof ability.skillId !== "string" ||
+      !ability.skillId.trim() ||
+      typeof ability.name !== "string" ||
+      !ability.name.trim() ||
+      typeof ability.description !== "string" ||
+      !ability.description.trim()
+    ) {
+      throw new Error("Invalid ability definition");
+    }
+
+    if (abilityIds.has(ability.id)) {
+      throw new Error(`Duplicate ability ID "${ability.id}"`);
+    }
+
+    abilityIds.add(ability.id);
+
+    const skill = getSkillById(ability.skillId);
+
+    if (!skill) {
+      throw new Error(
+        `Unknown skill "${ability.skillId}" for ability "${ability.id}"`
+      );
+    }
+
+    const numericFields = [
+      ability.manaCost,
+      ability.cooldownSeconds,
+      ability.basePower,
+      ability.powerPerLevel,
+      ability.requiredCharacterLevel
+    ];
+
+    if (
+      numericFields.some(
+        (value) =>
+          !Number.isFinite(value) ||
+          value < 0
+      ) ||
+      !Number.isInteger(ability.requiredCharacterLevel) ||
+      ability.requiredCharacterLevel < 1
+    ) {
+      throw new Error(
+        `Invalid numeric values for ability "${ability.id}"`
+      );
+    }
+
+    if (
+      !Array.isArray(ability.characterClasses) ||
+      ability.characterClasses.length === 0
+    ) {
+      throw new Error(
+        `Ability "${ability.id}" must have at least one character class`
+      );
+    }
+
+    const classSet = new Set<CharacterClass>();
+
+    for (const characterClass of ability.characterClasses) {
+      if (!CHARACTER_CLASSES.includes(characterClass)) {
+        throw new Error(
+          `Invalid character class for ability "${ability.id}"`
+        );
+      }
+
+      if (classSet.has(characterClass)) {
+        throw new Error(
+          `Duplicate character class for ability "${ability.id}"`
+        );
+      }
+
+      if (!skill.characterClasses.includes(characterClass)) {
+        throw new Error(
+          `Ability "${ability.id}" is incompatible with skill "${skill.id}"`
+        );
+      }
+
+      classSet.add(characterClass);
+    }
+  }
+}
+
+validateAbilityCatalog();
+
 export function getAbilityById(
   abilityId: string
 ): AbilityDefinition | undefined {
+  if (typeof abilityId !== "string" || !abilityId.trim()) {
+    return undefined;
+  }
+
   return ABILITY_CATALOG.find(
     (ability) => ability.id === abilityId
   );
@@ -64,9 +167,18 @@ export function getAbilityById(
 export function getAbilitiesForClass(
   characterClass: CharacterClass
 ): AbilityDefinition[] {
-  return ABILITY_CATALOG.filter(
-    (ability) => ability.characterClasses.includes(characterClass)
-  );
+  if (!CHARACTER_CLASSES.includes(characterClass)) {
+    throw new Error("Invalid character class");
+  }
+
+  return ABILITY_CATALOG
+    .filter(
+      (ability) => ability.characterClasses.includes(characterClass)
+    )
+    .map((ability) => ({
+      ...ability,
+      characterClasses: [...ability.characterClasses]
+    }));
 }
 
 export function calculateAbilityPower(
@@ -79,18 +191,29 @@ export function calculateAbilityPower(
     throw new Error("Unknown ability");
   }
 
+  const skill = getSkillById(ability.skillId);
+
+  if (!skill) {
+    throw new Error("Ability skill is not available");
+  }
+
   if (
     !Number.isInteger(skillLevel) ||
     skillLevel < 1 ||
-    skillLevel > 5
+    skillLevel > skill.maxLevel
   ) {
     throw new Error("Invalid skill level");
   }
 
-  return (
+  const power =
     ability.basePower +
-    (skillLevel - 1) * ability.powerPerLevel
-  );
+    (skillLevel - 1) * ability.powerPerLevel;
+
+  if (!Number.isFinite(power) || power < 0) {
+    throw new Error("Calculated ability power is invalid");
+  }
+
+  return power;
 }
 
 export function canUseAbility(
@@ -102,13 +225,30 @@ export function canUseAbility(
 ): boolean {
   const ability = getAbilityById(abilityId);
 
-  if (!ability) return false;
+  if (!ability) {
+    return false;
+  }
+
+  if (
+    !CHARACTER_CLASSES.includes(characterClass) ||
+    !Number.isInteger(characterLevel) ||
+    characterLevel < 1 ||
+    !Number.isInteger(skillLevel) ||
+    !Number.isFinite(currentMana) ||
+    currentMana < 0
+  ) {
+    return false;
+  }
 
   const skill = getSkillById(ability.skillId);
 
+  if (!skill) {
+    return false;
+  }
+
   return Boolean(
-    skill &&
     ability.characterClasses.includes(characterClass) &&
+    skill.characterClasses.includes(characterClass) &&
     characterLevel >= ability.requiredCharacterLevel &&
     characterLevel >= skill.requiredCharacterLevel &&
     skillLevel >= 1 &&
