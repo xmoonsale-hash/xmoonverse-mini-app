@@ -404,7 +404,10 @@ export default function App() {
                   </div>
                 </div>
               ) : gameState?.hasCharacter ? (
-                <GameCanvas />
+                <GameCanvas
+                  character={gameState.character}
+                  location={gameState.location}
+                />
               ) : gameState?.hasCharacter === false ? (
                 <CharacterCreation
                   sessionToken={sessionToken}
