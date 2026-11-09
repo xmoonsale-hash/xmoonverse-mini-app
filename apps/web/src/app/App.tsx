@@ -106,22 +106,41 @@ export default function App() {
 
   const telegram = getTelegramEnvironment();
 
+  const invalidateSession = useCallback(() => {
+    clearPlayerSession();
+    setSessionToken("");
+
+    setPlayerMeResult({
+      ok: false,
+      error: "session_invalid",
+      status: 401,
+    });
+
+    setGameStateResult({
+      ok: false,
+      error: "session_invalid",
+      status: 401,
+    });
+
+    setIsGameLoading(false);
+  }, []);
+
   const loadGameState = useCallback(async (token: string) => {
     setIsGameLoading(true);
     setGameStateResult(null);
 
     const result = await fetchGameState(token);
 
+    if (!result.ok && result.error === "session_invalid") {
+      invalidateSession();
+      return result;
+    }
+
     setGameStateResult(result);
     setIsGameLoading(false);
 
-    if (!result.ok && result.error === "session_invalid") {
-      clearPlayerSession();
-      setSessionToken("");
-    }
-
     return result;
-  }, []);
+  }, [invalidateSession]);
 
   const handleCharacterCreated = (
     data: CreateCharacterResponse
@@ -183,16 +202,15 @@ export default function App() {
 
           if (cancelled) return;
 
-          setGameStateResult(restoredGame);
-
           if (
             !restoredGame.ok &&
             restoredGame.error === "session_invalid"
           ) {
-            clearPlayerSession();
-            setSessionToken("");
+            invalidateSession();
+            return;
           }
 
+          setGameStateResult(restoredGame);
           return;
         }
 
@@ -251,8 +269,7 @@ export default function App() {
 
       if (!playerResult.ok) {
         if (playerResult.error === "session_invalid") {
-          clearPlayerSession();
-          setSessionToken("");
+          invalidateSession();
         }
 
         return;
@@ -264,12 +281,12 @@ export default function App() {
 
       if (cancelled) return;
 
-      setGameStateResult(gameResult);
-
       if (!gameResult.ok && gameResult.error === "session_invalid") {
-        clearPlayerSession();
-        setSessionToken("");
+        invalidateSession();
+        return;
       }
+
+      setGameStateResult(gameResult);
     }
 
     void loadAuthenticatedPlayer();
@@ -277,7 +294,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [telegram.isTelegram]);
+  }, [telegram.isTelegram, invalidateSession]);
 
   useEffect(() => {
     const unsubscribeBackButton = subscribeTelegramBackButton(() => {
@@ -375,14 +392,70 @@ export default function App() {
   const handleRetryGameLoad = async () => {
     const token = getPlayerSessionToken();
 
-    if (!token) {
-      clearPlayerSession();
-      setSessionToken("");
+    if (token) {
+      setSessionToken(token);
+      await loadGameState(token);
       return;
     }
 
-    setSessionToken(token);
-    await loadGameState(token);
+    clearPlayerSession();
+    setSessionToken("");
+    setAuthResult(null);
+    setPlayerMeResult(null);
+    setGameStateResult(null);
+
+    if (!telegram.isTelegram) {
+      return;
+    }
+
+    setIsGameLoading(true);
+
+    const auth = await authenticateTelegram();
+
+    if (!auth.ok) {
+      setAuthResult(auth);
+      setIsGameLoading(false);
+      return;
+    }
+
+    const sessionAccepted = setPlayerSession(auth.data.session);
+
+    if (!sessionAccepted) {
+      clearPlayerSession();
+      setAuthResult({
+        ok: false,
+        error: "invalid_response",
+      });
+      setIsGameLoading(false);
+      return;
+    }
+
+    setAuthResult(auth);
+    setSessionToken(auth.data.session.token);
+
+    const player = await fetchCurrentPlayer(auth.data.session.token);
+
+    setPlayerMeResult(player);
+
+    if (!player.ok) {
+      if (player.error === "session_invalid") {
+        invalidateSession();
+      } else {
+        setIsGameLoading(false);
+      }
+
+      return;
+    }
+
+    const game = await fetchGameState(auth.data.session.token);
+
+    if (!game.ok && game.error === "session_invalid") {
+      invalidateSession();
+      return;
+    }
+
+    setGameStateResult(game);
+    setIsGameLoading(false);
   };
 
   return (
