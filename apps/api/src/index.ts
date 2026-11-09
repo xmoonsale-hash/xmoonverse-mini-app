@@ -16,6 +16,7 @@ type Env = {
 const MAX_BODY_SIZE = 16_384;
 const MAX_INIT_DATA_LENGTH = 12_000;
 const TELEGRAM_AUTH_MAX_AGE = 86400;
+const SESSION_DURATION = 30 * 24 * 60 * 60;
 
 const app = new Hono<Env>();
 
@@ -95,6 +96,26 @@ async function readBodyWithLimit(
   }
 
   return new TextDecoder().decode(combined);
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value)
+  );
+
+  return bytesToHex(new Uint8Array(digest));
+}
+
+function createSessionToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return bytesToHex(bytes);
 }
 
 app.get("/", (c) => {
@@ -232,21 +253,12 @@ app.post("/api/v1/auth/telegram", async (c) => {
     );
   }
 
-  const encoder = new TextEncoder();
-
-  const initDataDigest = await crypto.subtle.digest(
-    "SHA-256",
-    encoder.encode(body.initData)
-  );
-
-  const initDataHash = Array.from(
-    new Uint8Array(initDataDigest)
-  )
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  const initDataHash = await sha256Hex(body.initData);
 
   const now = Math.floor(Date.now() / 1000);
-  const expiresAt = result.authDate + TELEGRAM_AUTH_MAX_AGE;
+  const expiresAt = now + SESSION_DURATION;
+  const authDataExpiresAt =
+    result.authDate + TELEGRAM_AUTH_MAX_AGE;
 
   const telegramUser = result.user;
   const telegramUserId = String(telegramUser.id);
@@ -260,9 +272,14 @@ app.post("/api/v1/auth/telegram", async (c) => {
   const avatarUrl = telegramUser.photo_url ?? null;
 
   const playerId = crypto.randomUUID();
+  const sessionId = crypto.randomUUID();
+  const sessionToken = createSessionToken();
+  const sessionTokenHash = await sha256Hex(sessionToken);
+
+  let batchResults: D1Result[];
 
   try {
-    const batchResults = await c.env.DB.batch([
+    batchResults = await c.env.DB.batch([
       c.env.DB.prepare(
         `DELETE FROM telegram_auth_replays
          WHERE expires_at <= ?`
@@ -272,7 +289,7 @@ app.post("/api/v1/auth/telegram", async (c) => {
         `INSERT OR IGNORE INTO telegram_auth_replays
          (init_data_hash, expires_at, created_at)
          VALUES (?, ?, ?)`
-      ).bind(initDataHash, expiresAt, now),
+      ).bind(initDataHash, authDataExpiresAt, now),
 
       c.env.DB.prepare(
         `INSERT INTO player_profiles (
@@ -298,24 +315,56 @@ app.post("/api/v1/auth/telegram", async (c) => {
         now,
         now
       ),
+
+      c.env.DB.prepare(
+        `INSERT INTO player_sessions (
+          id,
+          player_id,
+          token_hash,
+          created_at,
+          expires_at
+        )
+        SELECT ?, id, ?, ?, ?
+        FROM player_profiles
+        WHERE telegram_user_id = ?
+          AND changes() = 1`
+      ).bind(
+        sessionId,
+        sessionTokenHash,
+        now,
+        expiresAt,
+        telegramUserId
+      ),
     ]);
-
-    const replayResult = batchResults[1];
-
-    if (replayResult.meta.changes !== 1) {
-      return c.json(
-        {
-          success: false,
-          error: "Telegram authentication data has already been used",
-        },
-        409
-      );
-    }
   } catch {
     return c.json(
       {
         success: false,
         error: "Authentication storage is unavailable",
+      },
+      503
+    );
+  }
+
+  const replayResult = batchResults[1];
+
+  if (replayResult.meta.changes !== 1) {
+    return c.json(
+      {
+        success: false,
+        error: "Telegram authentication data has already been used",
+      },
+      409
+    );
+  }
+
+  const sessionResult = batchResults[3];
+
+  if (sessionResult.meta.changes !== 1) {
+    return c.json(
+      {
+        success: false,
+        error: "Unable to create player session",
       },
       503
     );
@@ -356,6 +405,11 @@ app.post("/api/v1/auth/telegram", async (c) => {
     authenticated: true,
     user: result.user,
     player,
+    session: {
+      id: sessionId,
+      token: sessionToken,
+      expiresAt,
+    },
     authDate: result.authDate,
     expiresAt,
   });
