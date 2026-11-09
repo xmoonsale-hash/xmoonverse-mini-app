@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { verifyTelegramInitData } from "../auth/telegram";
 import { validatePlayerSession } from "../auth/session";
+import { registerGameRoutes } from "./game";
 
 type Env = {
   Bindings: {
@@ -53,6 +54,9 @@ app.use(
     maxAge: 600,
   })
 );
+
+// Register game API routes after the CORS middleware.
+registerGameRoutes(app);
 
 async function readBodyWithLimit(
   request: Request,
