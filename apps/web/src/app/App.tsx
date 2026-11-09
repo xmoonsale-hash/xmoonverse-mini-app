@@ -33,7 +33,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
 ];
 
 function getAuthErrorLabel(
-  error: NonNullable<Extract<TelegramAuthResult, { ok: false }>["error"]>
+  error: Extract<TelegramAuthResult, { ok: false }>["error"]
 ): string {
   const labels: Record<typeof error, string> = {
     not_in_telegram: "Не в Telegram",
@@ -99,9 +99,7 @@ export default function App() {
     async function authenticateAndLoadPlayer() {
       const result = await authenticateTelegram();
 
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
 
       if (!result.ok) {
         clearPlayerSession();
@@ -130,9 +128,7 @@ export default function App() {
         result.data.session.token
       );
 
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
 
       setPlayerMeResult(playerResult);
 
@@ -242,7 +238,11 @@ export default function App() {
             aria-live="polite"
           >
             <span className="player-status-dot" />
-            <span>{playerStatusLabel}</span>
+            <span>
+              {playerMeResult?.ok === true
+                ? playerLabel
+                : playerStatusLabel}
+            </span>
           </div>
         </header>
 
