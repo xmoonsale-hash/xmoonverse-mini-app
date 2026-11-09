@@ -1,5 +1,13 @@
-
 import Phaser from "phaser";
+import type {
+  GameCharacter,
+  GameLocation,
+} from "../../platform/game";
+
+type MeadowSceneData = {
+  character?: GameCharacter | null;
+  location?: GameLocation | null;
+};
 
 type InteractableType = "npc" | "resource" | "camp";
 type ResourceType =
@@ -39,6 +47,7 @@ interface Obstacle {
 }
 
 export default class MeadowScene extends Phaser.Scene {
+  private characterData: GameCharacter | null = null;
   private player!: Phaser.GameObjects.Container;
   private playerBody!: Phaser.GameObjects.Arc;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -124,6 +133,31 @@ export default class MeadowScene extends Phaser.Scene {
 
   constructor() {
     super("MeadowScene");
+  }
+
+  init(data: MeadowSceneData = {}) {
+    this.characterData = data.character ?? null;
+
+    const location = data.location;
+
+    if (
+      location &&
+      location.regionId === "greenhaven" &&
+      Number.isFinite(location.x) &&
+      Number.isFinite(location.y)
+    ) {
+      this.spawnPosition.x = Phaser.Math.Clamp(
+        location.x,
+        this.playerRadius,
+        this.worldWidth - this.playerRadius
+      );
+
+      this.spawnPosition.y = Phaser.Math.Clamp(
+        location.y,
+        this.playerRadius,
+        this.worldHeight - this.playerRadius
+      );
+    }
   }
 
   create() {
@@ -1014,18 +1048,49 @@ export default class MeadowScene extends Phaser.Scene {
   // --------------------------------------------------
 
   private createPlayer() {
+    const classColors: Record<
+      GameCharacter["characterClass"],
+      number
+    > = {
+      warrior: 0xd982a4,
+      ranger: 0x79c99b,
+      mage: 0x9a8aff,
+      adventurer: 0xb89aff,
+    };
+
+    const characterClass =
+      this.characterData?.characterClass ?? "adventurer";
+
+    const bodyColor = classColors[characterClass];
+
     const aura = this.add.circle(0, 0, 25, 0xa44dff, 0.14);
     const shadow = this.add.ellipse(0, 12, 25, 9, 0x10091e, 0.55);
-    const body = this.add.rectangle(0, 0, 18, 24, 0xb89aff);
+    const body = this.add.rectangle(0, 0, 18, 24, bodyColor);
     const head = this.add.circle(0, -17, 9, 0xf0d2e4);
     const hair = this.add.arc(0, -19, 9, 190, 350, false, 0x49356b);
 
     hair.setStrokeStyle(5, 0x49356b);
 
+    const nameLabel = this.add
+      .text(
+        0,
+        -43,
+        this.characterData?.name ?? "Путник",
+        {
+          fontFamily: "Arial",
+          fontSize: "10px",
+          fontStyle: "bold",
+          color: "#f0e4ff",
+          stroke: "#1b0d2e",
+          strokeThickness: 3,
+        }
+      )
+      .setOrigin(0.5);
+
     this.player = this.add.container(
       this.spawnPosition.x,
       this.spawnPosition.y,
-      [aura, shadow, body, head, hair]
+      [aura, shadow, body, head, hair, nameLabel]
     );
 
     this.player.setDepth(this.player.y);
