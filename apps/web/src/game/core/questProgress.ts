@@ -1,3 +1,4 @@
+
 import type {
   QuestDefinition,
   QuestObjectiveType,
@@ -10,28 +11,152 @@ export interface QuestEvent {
   amount?: number;
 }
 
+const OBJECTIVE_TYPES = new Set<QuestObjectiveType>([
+  "defeat_monsters",
+  "collect_resources",
+  "craft_items",
+  "visit_region"
+]);
+
+function isValidQuestDefinition(
+  quest: QuestDefinition
+): boolean {
+  if (
+    typeof quest !== "object" ||
+    quest === null ||
+    typeof quest.id !== "string" ||
+    quest.id.length === 0 ||
+    !Array.isArray(quest.objectives)
+  ) {
+    return false;
+  }
+
+  const objectiveIds = new Set<string>();
+
+  for (const objective of quest.objectives) {
+    if (
+      typeof objective !== "object" ||
+      objective === null ||
+      typeof objective.id !== "string" ||
+      objective.id.length === 0 ||
+      objectiveIds.has(objective.id) ||
+      !OBJECTIVE_TYPES.has(objective.type) ||
+      typeof objective.targetId !== "string" ||
+      objective.targetId.length === 0 ||
+      !Number.isSafeInteger(objective.requiredAmount) ||
+      objective.requiredAmount <= 0
+    ) {
+      return false;
+    }
+
+    objectiveIds.add(objective.id);
+  }
+
+  return true;
+}
+
+function isValidQuestProgress(
+  quest: QuestDefinition,
+  progress: QuestProgress
+): boolean {
+  if (
+    typeof progress !== "object" ||
+    progress === null ||
+    progress.questId !== quest.id ||
+    typeof progress.completed !== "boolean" ||
+    typeof progress.claimed !== "boolean" ||
+    typeof progress.completedObjectives !== "object" ||
+    progress.completedObjectives === null ||
+    Array.isArray(progress.completedObjectives)
+  ) {
+    return false;
+  }
+
+  const validObjectiveIds = new Set(
+    quest.objectives.map((objective) => objective.id)
+  );
+
+  for (const [objectiveId, amount] of Object.entries(
+    progress.completedObjectives
+  )) {
+    const objective = quest.objectives.find(
+      (entry) => entry.id === objectiveId
+    );
+
+    if (
+      !validObjectiveIds.has(objectiveId) ||
+      !objective ||
+      !Number.isSafeInteger(amount) ||
+      amount < 0 ||
+      amount > objective.requiredAmount
+    ) {
+      return false;
+    }
+  }
+
+  const actuallyCompleted = quest.objectives.every(
+    (objective) =>
+      (progress.completedObjectives[objective.id] ?? 0) >=
+      objective.requiredAmount
+  );
+
+  if (progress.completed !== actuallyCompleted) {
+    return false;
+  }
+
+  if (progress.claimed && !progress.completed) {
+    return false;
+  }
+
+  return true;
+}
+
+function cloneQuestProgress(
+  progress: QuestProgress
+): QuestProgress {
+  return {
+    ...progress,
+    completedObjectives: {
+      ...progress.completedObjectives
+    }
+  };
+}
+
 export function updateQuestProgress(
   quest: QuestDefinition,
   progress: QuestProgress,
   event: QuestEvent
 ): QuestProgress {
+  if (!isValidQuestDefinition(quest)) {
+    throw new Error("Invalid quest definition");
+  }
+
   if (progress.questId !== quest.id) {
     throw new Error("Quest progress does not match quest");
   }
 
-  if (progress.claimed || progress.completed) {
-    return {
-      ...progress,
-      completedObjectives: {
-        ...progress.completedObjectives
-      }
-    };
+  if (!isValidQuestProgress(quest, progress)) {
+    throw new Error("Invalid quest progress");
+  }
+
+  if (
+    typeof event !== "object" ||
+    event === null ||
+    !OBJECTIVE_TYPES.has(event.type) ||
+    typeof event.targetId !== "string" ||
+    event.targetId.length === 0
+  ) {
+    throw new Error("Invalid quest event");
   }
 
   const amount = event.amount ?? 1;
 
-  if (!Number.isInteger(amount) || amount <= 0) {
-    throw new Error("Event amount must be a positive integer");
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    throw new Error("Event amount must be a positive safe integer");
+  }
+
+  if (progress.claimed || progress.completed) {
+    return cloneQuestProgress(progress);
   }
 
   const updatedObjectives = {
@@ -73,7 +198,10 @@ export function isQuestCompleted(
   quest: QuestDefinition,
   progress: QuestProgress
 ): boolean {
-  if (quest.id !== progress.questId) {
+  if (
+    !isValidQuestDefinition(quest) ||
+    !isValidQuestProgress(quest, progress)
+  ) {
     return false;
   }
 
@@ -88,7 +216,10 @@ export function getQuestCompletionPercentage(
   quest: QuestDefinition,
   progress: QuestProgress
 ): number {
-  if (quest.id !== progress.questId) {
+  if (
+    !isValidQuestDefinition(quest) ||
+    !isValidQuestProgress(quest, progress)
+  ) {
     return 0;
   }
 
