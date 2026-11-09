@@ -1,10 +1,10 @@
 
 /**
- * xMoonVerse Realm
+ * xMoonVerse: Realm
  * Shared domain contracts
  *
- * Единые типы для клиента, игровых систем и будущего backend.
- * Здесь находятся только модели и типы — без игровой логики и UI.
+ * Единый источник типов для frontend, backend и игровых систем.
+ * Только типы и структуры данных — без игровой логики, UI и доступа к БД.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -13,6 +13,7 @@
 
 export type PlayerId = string;
 export type CharacterId = string;
+export type InventoryStackId = string;
 export type ItemId = string;
 export type ResourceId = string;
 export type ResourceNodeId = string;
@@ -21,11 +22,20 @@ export type AchievementId = string;
 export type RecipeId = string;
 export type RegionId = string;
 export type SessionId = string;
+export type ProfessionId = string;
+export type SkillId = string;
+export type AbilityId = string;
+export type MonsterId = string;
+export type CurrencyId = string;
 
 /* -------------------------------------------------------------------------- */
 /* Common                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Unix timestamp in seconds.
+ * Milliseconds must be converted before entering shared domain models.
+ */
 export type UnixTimestamp = number;
 
 export type Rarity =
@@ -59,6 +69,12 @@ export interface WorldBounds {
 export interface ApiError {
   code: string;
   message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface ApiErrorResponse {
+  success: false;
+  error: string;
   details?: Record<string, unknown>;
 }
 
@@ -114,10 +130,19 @@ export interface CharacterStats {
 }
 
 export interface CharacterProgression {
+  /** Current character level. No artificial gameplay level cap. */
   level: number;
+
+  /** Experience accumulated within the current level. */
   experience: number;
+
+  /** Experience required to reach the next level. */
   experienceToNextLevel: number;
+
+  /** Available skill points. */
   skillPoints: number;
+
+  /** Total experience accumulated throughout progression. */
   totalExperience?: number;
 }
 
@@ -143,40 +168,56 @@ export interface CharacterAppearance {
 /* Items and inventory                                                         */
 /* -------------------------------------------------------------------------- */
 
-export type ItemCategory =
-  | "resource"
-  | "consumable"
-  | "equipment"
+export type ItemType =
+  | "weapon"
+  | "armor"
+  | "accessory"
   | "material"
-  | "quest"
-  | "misc";
+  | "consumable"
+  | "quest";
+
+/** Kept as a semantic alias for existing consumers. */
+export type ItemCategory = ItemType;
 
 export type EquipmentSlot =
+  | "weapon"
   | "head"
   | "chest"
   | "legs"
-  | "feet"
-  | "weapon"
-  | "offhand"
   | "accessory";
+
+export interface ItemStats {
+  attack?: number;
+  defense?: number;
+  health?: number;
+  mana?: number;
+}
 
 export interface ItemDefinition {
   id: ItemId;
   name: string;
   description: string;
-  category: ItemCategory;
+  type: ItemType;
   rarity: Rarity;
-  icon?: string;
+  requiredLevel: number;
   stackable: boolean;
   maxStack: number;
+  equipmentSlot?: EquipmentSlot;
+  stats?: ItemStats;
+  icon?: string;
   sellPrice?: number;
   weight?: number;
-  equipmentSlot?: EquipmentSlot;
-  requiredLevel?: number;
-  status: EntityStatus;
+  status?: EntityStatus;
 }
 
+/**
+ * A single inventory stack.
+ *
+ * id is optional for compatibility with local game systems that have not
+ * started assigning persistent stack identifiers yet.
+ */
 export interface InventoryItem {
+  id?: InventoryStackId;
   itemId: ItemId;
   quantity: number;
   equipped: boolean;
@@ -373,6 +414,36 @@ export interface WorldState {
   clock: WorldClock;
   discoveredRegionIds: RegionId[];
   updatedAt: UnixTimestamp;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Game API contracts                                                          */
+/* -------------------------------------------------------------------------- */
+
+/** Location returned by the game state API. */
+export interface GameLocation extends Position2D {
+  regionId: RegionId;
+}
+
+/** GET /api/v1/game/state */
+export interface GameStateResponse {
+  success: true;
+  hasCharacter: boolean;
+  character: GameCharacter | null;
+  location: GameLocation | null;
+  inventory: InventoryItem[];
+}
+
+/** POST /api/v1/game/character */
+export interface CreateCharacterRequest {
+  name: string;
+  characterClass: CharacterClass;
+}
+
+export interface CreateCharacterResponse {
+  success: true;
+  character: GameCharacter;
+  location: GameLocation;
 }
 
 /* -------------------------------------------------------------------------- */
