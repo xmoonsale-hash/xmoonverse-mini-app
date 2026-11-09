@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import GameCanvas from "../game/GameCanvas";
 import {
   applyTelegramTheme,
@@ -19,8 +18,13 @@ import {
 } from "../platform/auth";
 import {
   clearPlayerSession,
+  getPlayerSessionToken,
   setPlayerSession,
 } from "../platform/session";
+import {
+  fetchGameState,
+  type GameStateResult,
+} from "../platform/game";
 
 type Tab = "world" | "character" | "inventory" | "quests" | "social";
 
@@ -61,14 +65,56 @@ function getPlayerErrorLabel(
   return labels[error];
 }
 
+function getGameErrorLabel(
+  error: Extract<GameStateResult, { ok: false }>["error"]
+): string {
+  const labels: Record<
+    Extract<GameStateResult, { ok: false }>["error"],
+    string
+  > = {
+    api_not_configured: "API не настроен",
+    network_error: "Нет соединения",
+    session_invalid: "Сессия недействительна",
+    character_exists: "Персонаж уже существует",
+    invalid_request: "Некорректный запрос",
+    server_error: "Ошибка сервера",
+    invalid_response: "Ошибка игрового состояния",
+  };
+
+  return labels[error];
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("world");
+
   const [authResult, setAuthResult] =
     useState<TelegramAuthResult | null>(null);
+
   const [playerMeResult, setPlayerMeResult] =
     useState<PlayerMeResult | null>(null);
 
+  const [gameStateResult, setGameStateResult] =
+    useState<GameStateResult | null>(null);
+
+  const [isGameLoading, setIsGameLoading] = useState(false);
+
   const telegram = getTelegramEnvironment();
+
+  const loadGameState = useCallback(async (sessionToken: string) => {
+    setIsGameLoading(true);
+    setGameStateResult(null);
+
+    const result = await fetchGameState(sessionToken);
+
+    setGameStateResult(result);
+    setIsGameLoading(false);
+
+    if (!result.ok && result.error === "session_invalid") {
+      clearPlayerSession();
+    }
+
+    return result;
+  }, []);
 
   useEffect(() => {
     applyTelegramTheme();
@@ -89,6 +135,8 @@ export default function App() {
     clearPlayerSession();
     setAuthResult(null);
     setPlayerMeResult(null);
+    setGameStateResult(null);
+    setIsGameLoading(false);
 
     if (!telegram.isTelegram) {
       return () => {
@@ -105,6 +153,7 @@ export default function App() {
         clearPlayerSession();
         setAuthResult(result);
         setPlayerMeResult(null);
+        setGameStateResult(null);
         return;
       }
 
@@ -114,11 +163,14 @@ export default function App() {
 
       if (!sessionAccepted) {
         clearPlayerSession();
+
         setAuthResult({
           ok: false,
           error: "invalid_response",
         });
+
         setPlayerMeResult(null);
+        setGameStateResult(null);
         return;
       }
 
@@ -132,10 +184,23 @@ export default function App() {
 
       setPlayerMeResult(playerResult);
 
-      if (
-        !playerResult.ok &&
-        playerResult.error === "session_invalid"
-      ) {
+      if (!playerResult.ok) {
+        if (playerResult.error === "session_invalid") {
+          clearPlayerSession();
+        }
+
+        return;
+      }
+
+      const gameResult = await fetchGameState(
+        result.data.session.token
+      );
+
+      if (cancelled) return;
+
+      setGameStateResult(gameResult);
+
+      if (!gameResult.ok && gameResult.error === "session_invalid") {
         clearPlayerSession();
       }
     }
@@ -210,12 +275,42 @@ export default function App() {
     playerStatusLabel = getPlayerErrorLabel(playerMeResult.error);
     playerStatusTitle =
       `Не удалось подтвердить профиль: ${playerMeResult.error}`;
+  } else if (isGameLoading) {
+    playerStatusLabel = "Загрузка мира…";
+    playerStatusTitle = "Загружается игровое состояние";
+  } else if (gameStateResult?.ok === false) {
+    playerStatusLabel = getGameErrorLabel(gameStateResult.error);
+    playerStatusTitle =
+      `Не удалось загрузить игру: ${gameStateResult.error}`;
+  } else if (gameStateResult?.ok === true) {
+    playerStatusLabel = gameStateResult.data.hasCharacter
+      ? "В мире"
+      : "Новый путник";
+
+    playerStatusTitle = gameStateResult.data.hasCharacter
+      ? "Игровое состояние загружено"
+      : "Персонаж ещё не создан";
   } else {
     playerStatusLabel = "В сети";
     playerStatusTitle = "Игровой профиль подтверждён сервером";
   }
 
   const activeItem = tabs.find((tab) => tab.id === activeTab);
+
+  const gameState = gameStateResult?.ok === true
+    ? gameStateResult.data
+    : null;
+
+  const handleRetryGameLoad = async () => {
+    const token = getPlayerSessionToken();
+
+    if (!token) {
+      clearPlayerSession();
+      return;
+    }
+
+    await loadGameState(token);
+  };
 
   return (
     <main className="app-shell">
@@ -248,7 +343,61 @@ export default function App() {
 
         <section className="game-content" aria-label="Игровая область">
           {activeTab === "world" ? (
-            <GameCanvas />
+            <>
+              {isGameLoading ? (
+                <div className="section-screen">
+                  <div className="section-screen-glow" />
+                  <div className="section-screen-content">
+                    <p className="section-eyebrow">
+                      XMOONVERSE REALM
+                    </p>
+                    <h1>Загрузка мира</h1>
+                    <p className="section-description">
+                      Подготавливаем игровое пространство…
+                    </p>
+                  </div>
+                </div>
+              ) : gameStateResult?.ok === false ? (
+                <div className="section-screen">
+                  <div className="section-screen-glow" />
+                  <div className="section-screen-content">
+                    <p className="section-eyebrow">
+                      XMOONVERSE REALM
+                    </p>
+                    <h1>Не удалось загрузить мир</h1>
+                    <p className="section-description">
+                      {getGameErrorLabel(gameStateResult.error)}
+                    </p>
+                    <button
+                      type="button"
+                      className="nav-item active"
+                      onClick={() => void handleRetryGameLoad()}
+                    >
+                      Повторить загрузку
+                    </button>
+                  </div>
+                </div>
+              ) : gameState?.hasCharacter ? (
+                <GameCanvas />
+              ) : gameState?.hasCharacter === false ? (
+                <div className="section-screen">
+                  <div className="section-screen-glow" />
+                  <div className="section-screen-content">
+                    <p className="section-eyebrow">
+                      XMOONVERSE REALM
+                    </p>
+                    <h1>Добро пожаловать в Realm</h1>
+                    <p className="section-description">
+                      Твой путь в этом мире начинается с создания
+                      персонажа. Скоро здесь появится возможность
+                      выбрать класс героя и отправиться в путешествие.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <GameCanvas />
+              )}
+            </>
           ) : (
             <div className="section-screen">
               <div className="section-screen-glow" />
