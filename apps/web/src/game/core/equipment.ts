@@ -19,8 +19,65 @@ export interface EquipmentResult {
   equipment: EquipmentState;
 }
 
+const EQUIPMENT_SLOTS: EquipmentSlot[] = [
+  "weapon",
+  "head",
+  "chest",
+  "legs",
+  "accessory"
+];
+
 export function createInitialEquipment(): EquipmentState {
   return {};
+}
+
+function validateEquipment(
+  inventory: InventoryItem[],
+  equipment: EquipmentState
+): void {
+  const equippedIds = new Set<ItemId>();
+
+  for (const slot of EQUIPMENT_SLOTS) {
+    const itemId = equipment[slot];
+
+    if (!itemId) {
+      continue;
+    }
+
+    if (equippedIds.has(itemId)) {
+      throw new Error(`Item "${itemId}" is equipped more than once`);
+    }
+
+    equippedIds.add(itemId);
+
+    const definition = getItemById(itemId);
+
+    if (!definition || definition.equipmentSlot !== slot) {
+      throw new Error(`Invalid equipment assigned to slot "${slot}"`);
+    }
+
+    const inventoryItem = inventory.find(
+      (entry) => entry.itemId === itemId
+    );
+
+    if (
+      !inventoryItem ||
+      inventoryItem.quantity !== 1 ||
+      !inventoryItem.equipped
+    ) {
+      throw new Error(
+        `Equipment "${itemId}" is inconsistent with inventory`
+      );
+    }
+  }
+
+  for (const entry of inventory) {
+    if (entry.equipped && !equippedIds.has(entry.itemId)) {
+      throw new Error(
+        `Inventory item "${entry.itemId}" is marked equipped but has no equipment slot`
+      );
+    }
+  }
 }
 
 export function equipItem(
@@ -29,6 +86,12 @@ export function equipItem(
   itemId: ItemId,
   characterLevel: number
 ): EquipmentResult {
+  if (!Number.isInteger(characterLevel) || characterLevel < 1) {
+    throw new Error("Character level must be a positive integer");
+  }
+
+  validateEquipment(inventory, equipment);
+
   const item = getItemById(itemId);
 
   if (!item || !item.equipmentSlot) {
@@ -43,12 +106,26 @@ export function equipItem(
     (entry) => entry.itemId === itemId
   );
 
-  if (!inventoryItem || inventoryItem.quantity < 1) {
+  if (
+    !inventoryItem ||
+    inventoryItem.quantity !== 1
+  ) {
     throw new Error("Item is not available in inventory");
   }
 
   const slot = item.equipmentSlot;
   const previousItemId = equipment[slot];
+
+  if (previousItemId === itemId) {
+    return {
+      inventory: inventory.map((entry) => ({ ...entry })),
+      equipment: { ...equipment }
+    };
+  }
+
+  if (inventoryItem.equipped) {
+    throw new Error("Item is already equipped");
+  }
 
   const nextEquipment: EquipmentState = {
     ...equipment,
@@ -65,6 +142,8 @@ export function equipItem(
           : entry.equipped
   }));
 
+  validateEquipment(nextInventory, nextEquipment);
+
   return {
     inventory: nextInventory,
     equipment: nextEquipment
@@ -76,6 +155,12 @@ export function unequipItem(
   equipment: EquipmentState,
   slot: EquipmentSlot
 ): EquipmentResult {
+  validateEquipment(inventory, equipment);
+
+  if (!EQUIPMENT_SLOTS.includes(slot)) {
+    throw new Error(`Unknown equipment slot "${slot}"`);
+  }
+
   const itemId = equipment[slot];
 
   if (!itemId) {
@@ -88,12 +173,16 @@ export function unequipItem(
   const nextEquipment = { ...equipment };
   delete nextEquipment[slot];
 
+  const nextInventory = inventory.map((item) => ({
+    ...item,
+    equipped:
+      item.itemId === itemId ? false : item.equipped
+  }));
+
+  validateEquipment(nextInventory, nextEquipment);
+
   return {
-    inventory: inventory.map((item) => ({
-      ...item,
-      equipped:
-        item.itemId === itemId ? false : item.equipped
-    })),
+    inventory: nextInventory,
     equipment: nextEquipment
   };
 }
@@ -108,12 +197,30 @@ export function getEquipmentStats(
     mana: 0
   };
 
-  for (const itemId of Object.values(equipment)) {
-    if (!itemId) continue;
+  const equippedIds = new Set<ItemId>();
+
+  for (const slot of EQUIPMENT_SLOTS) {
+    const itemId = equipment[slot];
+
+    if (!itemId) {
+      continue;
+    }
+
+    if (equippedIds.has(itemId)) {
+      throw new Error(`Item "${itemId}" is equipped more than once`);
+    }
+
+    equippedIds.add(itemId);
 
     const item = getItemById(itemId);
 
-    if (!item?.stats) continue;
+    if (!item || item.equipmentSlot !== slot) {
+      throw new Error(`Invalid equipment assigned to slot "${slot}"`);
+    }
+
+    if (!item.stats) {
+      continue;
+    }
 
     total.attack += item.stats.attack ?? 0;
     total.defense += item.stats.defense ?? 0;
