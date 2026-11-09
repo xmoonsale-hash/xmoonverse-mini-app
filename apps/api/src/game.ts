@@ -50,6 +50,10 @@ const DEFAULT_LOCATION = {
   y: 800,
 };
 
+const MIN_CHARACTER_NAME_LENGTH = 3;
+const MAX_CHARACTER_NAME_LENGTH = 20;
+const INVALID_NAME_CHARACTERS = /[\u0000-\u001F\u007F]/;
+
 const CHARACTER_CLASSES = new Set<CharacterClass>([
   "warrior",
   "ranger",
@@ -269,11 +273,24 @@ export function registerGameRoutes(app: Hono<Env>) {
     const name = typeof data.name === "string" ? data.name.trim() : "";
     const characterClass = data.characterClass;
 
-    if (name.length < 2 || name.length > 24) {
+    if (
+      name.length < MIN_CHARACTER_NAME_LENGTH ||
+      name.length > MAX_CHARACTER_NAME_LENGTH
+    ) {
       return c.json(
         {
           success: false,
-          error: "Character name must contain 2 to 24 characters",
+          error: "Character name must contain 3 to 20 characters",
+        },
+        400
+      );
+    }
+
+    if (INVALID_NAME_CHARACTERS.test(name)) {
+      return c.json(
+        {
+          success: false,
+          error: "Character name contains invalid characters",
         },
         400
       );
