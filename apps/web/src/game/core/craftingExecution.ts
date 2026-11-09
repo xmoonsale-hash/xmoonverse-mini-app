@@ -1,24 +1,43 @@
+
 import type { InventoryItem } from "@xmoonverse/shared";
 import type { ProfessionId } from "./professions";
 
-import {
-  getRecipeById
-} from "./crafting";
-
-import {
-  addItem,
-  removeItem
-} from "./inventory";
-
-import {
-  getItemById
-} from "./items";
+import { getRecipeById } from "./crafting";
+import { addItem, removeItem } from "./inventory";
+import { getItemById } from "./items";
 
 export interface CraftingResult {
   inventory: InventoryItem[];
   craftedItemId: string;
   craftedQuantity: number;
   craftingTimeSeconds: number;
+}
+
+function hasRequiredIngredients(
+  inventory: InventoryItem[],
+  ingredients: { itemId: string; quantity: number }[]
+): boolean {
+  return ingredients.every((ingredient) => {
+    const item = getItemById(ingredient.itemId);
+
+    if (
+      !item ||
+      !Number.isInteger(ingredient.quantity) ||
+      ingredient.quantity <= 0
+    ) {
+      return false;
+    }
+
+    const availableQuantity = inventory.reduce(
+      (total, entry) =>
+        entry.itemId === ingredient.itemId && !entry.equipped
+          ? total + entry.quantity
+          : total,
+      0
+    );
+
+    return availableQuantity >= ingredient.quantity;
+  });
 }
 
 export function canCraftRecipe(
@@ -40,23 +59,32 @@ export function canCraftRecipe(
     return false;
   }
 
-  if (!getItemById(recipe.output.itemId)) {
+  if (
+    !Number.isInteger(recipe.output.quantity) ||
+    recipe.output.quantity <= 0 ||
+    !Number.isInteger(recipe.craftingTimeSeconds) ||
+    recipe.craftingTimeSeconds < 0
+  ) {
     return false;
   }
 
-  return recipe.ingredients.every((ingredient) => {
-    const item = getItemById(ingredient.itemId);
+  const outputItem = getItemById(recipe.output.itemId);
 
-    const inventoryItem = inventory.find(
-      (entry) => entry.itemId === ingredient.itemId
-    );
+  if (!outputItem) {
+    return false;
+  }
 
-    return Boolean(
-      item &&
-      inventoryItem &&
-      inventoryItem.quantity >= ingredient.quantity
-    );
-  });
+  if (
+    !outputItem.stackable &&
+    recipe.output.quantity !== 1
+  ) {
+    return false;
+  }
+
+  return hasRequiredIngredients(
+    inventory,
+    recipe.ingredients
+  );
 }
 
 export function craftItem(
