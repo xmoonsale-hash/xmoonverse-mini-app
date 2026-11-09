@@ -1,9 +1,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
+import type { GameCharacter, GameLocation } from "../platform/game";
 import MeadowScene from "./scenes/MeadowScene";
 
 type GraphicsMode = "performance" | "standard";
+
+type GameCanvasProps = {
+  character?: GameCharacter | null;
+  location?: GameLocation | null;
+};
 
 const COLORS = {
   background: "#080319",
@@ -47,7 +53,10 @@ const panelStyle: React.CSSProperties = {
   WebkitBackdropFilter: "blur(16px)",
 };
 
-export default function GameCanvas() {
+export default function GameCanvas({
+  character = null,
+  location = null,
+}: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
 
@@ -328,8 +337,10 @@ export default function GameCanvas() {
         },
 
         disableContextMenu: true,
-        scene: [MeadowScene],
 
+        // Сцену запускаем отдельно, чтобы передать ей серверное состояние.
+        scene: [],
+        
         render: {
           antialias: false,
           pixelArt: true,
@@ -344,6 +355,13 @@ export default function GameCanvas() {
       });
 
       gameRef.current = game;
+
+      // Передаём сцене данные персонажа и его текущую локацию.
+      game.scene.add("MeadowScene", MeadowScene, false);
+      game.scene.start("MeadowScene", {
+        character,
+        location,
+      });
 
       const canvas = game.canvas;
 
