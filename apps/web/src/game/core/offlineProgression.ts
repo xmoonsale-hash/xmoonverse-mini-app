@@ -1,4 +1,7 @@
+
 export const MAX_OFFLINE_HOURS = 8;
+
+const MAX_TIMESTAMP = 8640000000000000;
 
 export interface OfflineActivity {
   experiencePerHour: number;
@@ -12,28 +15,65 @@ export interface OfflineProgressResult {
   resourcesGained: Record<string, number>;
 }
 
+function validateTimestamp(timestamp: number): void {
+  if (
+    !Number.isFinite(timestamp) ||
+    timestamp < 0 ||
+    timestamp > MAX_TIMESTAMP
+  ) {
+    throw new Error("Invalid timestamp");
+  }
+}
+
+function validateRate(
+  rate: number,
+  label: string
+): void {
+  if (
+    !Number.isFinite(rate) ||
+    rate < 0
+  ) {
+    throw new Error(`Invalid ${label}`);
+  }
+}
+
+function calculateGain(
+  rate: number,
+  hours: number,
+  label: string
+): number {
+  const gain = Math.floor(rate * hours);
+
+  if (
+    !Number.isSafeInteger(gain) ||
+    gain < 0
+  ) {
+    throw new Error(`${label} overflow`);
+  }
+
+  return gain;
+}
+
 export function calculateOfflineDuration(
   lastActiveAt: number,
   currentTime: number
 ): number {
-  if (
-    !Number.isFinite(lastActiveAt) ||
-    !Number.isFinite(currentTime)
-  ) {
-    throw new Error("Invalid timestamp");
-  }
-
-  if (lastActiveAt < 0 || currentTime < 0) {
-    throw new Error("Timestamp cannot be negative");
-  }
+  validateTimestamp(lastActiveAt);
+  validateTimestamp(currentTime);
 
   if (currentTime < lastActiveAt) {
-    throw new Error("Current time cannot precede last activity");
+    throw new Error(
+      "Current time cannot precede last activity"
+    );
   }
 
   const elapsedSeconds = Math.floor(
     (currentTime - lastActiveAt) / 1000
   );
+
+  if (!Number.isSafeInteger(elapsedSeconds)) {
+    throw new Error("Offline duration overflow");
+  }
 
   return Math.min(
     elapsedSeconds,
@@ -47,10 +87,23 @@ export function calculateOfflineProgress(
   activity: OfflineActivity
 ): OfflineProgressResult {
   if (
-    !Number.isFinite(activity.experiencePerHour) ||
-    activity.experiencePerHour < 0
+    typeof activity !== "object" ||
+    activity === null
   ) {
-    throw new Error("Invalid offline experience rate");
+    throw new Error("Invalid offline activity");
+  }
+
+  validateRate(
+    activity.experiencePerHour,
+    "offline experience rate"
+  );
+
+  if (
+    typeof activity.resourcesPerHour !== "object" ||
+    activity.resourcesPerHour === null ||
+    Array.isArray(activity.resourcesPerHour)
+  ) {
+    throw new Error("Invalid resource production rates");
   }
 
   const elapsedSeconds = calculateOfflineDuration(
@@ -58,34 +111,53 @@ export function calculateOfflineProgress(
     currentTime
   );
 
+  const rawElapsedSeconds = Math.floor(
+    (currentTime - lastActiveAt) / 1000
+  );
+
   const hours = elapsedSeconds / 3600;
+
+  const experienceGained = calculateGain(
+    activity.experiencePerHour,
+    hours,
+    "Offline experience"
+  );
 
   const resourcesGained: Record<string, number> = {};
 
   for (const [resourceId, rate] of Object.entries(
     activity.resourcesPerHour
   )) {
-    if (!resourceId.trim()) {
+    if (
+      typeof resourceId !== "string" ||
+      !resourceId.trim()
+    ) {
       throw new Error("Resource ID is required");
     }
 
-    if (!Number.isFinite(rate) || rate < 0) {
-      throw new Error("Invalid resource production rate");
-    }
-
-    resourcesGained[resourceId] = Math.floor(
-      rate * hours
+    validateRate(
+      rate,
+      "resource production rate"
     );
+
+    const quantity = calculateGain(
+      rate,
+      hours,
+      `Resource production for ${resourceId}`
+    );
+
+    Object.defineProperty(resourcesGained, resourceId, {
+      value: quantity,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
   }
 
   return {
-    elapsedSeconds: Math.floor(
-      (currentTime - lastActiveAt) / 1000
-    ),
+    elapsedSeconds: rawElapsedSeconds,
     creditedSeconds: elapsedSeconds,
-    experienceGained: Math.floor(
-      activity.experiencePerHour * hours
-    ),
+    experienceGained,
     resourcesGained
   };
 }
