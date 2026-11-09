@@ -1,9 +1,6 @@
 
 import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { verifyTelegramInitData } from "../auth/telegram";
 import { validatePlayerSession } from "../auth/session";
-import { registerGameRoutes } from "./game";
 
 type Env = {
   Bindings: {
@@ -15,463 +12,419 @@ type Env = {
   };
 };
 
-const MAX_BODY_SIZE = 16_384;
-const MAX_INIT_DATA_LENGTH = 12_000;
-const TELEGRAM_AUTH_MAX_AGE = 86400;
-const SESSION_DURATION = 30 * 24 * 60 * 60;
+type CharacterClass = "warrior" | "ranger" | "mage" | "adventurer";
 
-const app = new Hono<Env>();
+type CharacterRecord = {
+  id: string;
+  player_id: string;
+  name: string;
+  character_class: CharacterClass;
+  level: number;
+  experience: number;
+  skill_points: number;
+  health: number;
+  max_health: number;
+  mana: number;
+  max_mana: number;
+  strength: number;
+  agility: number;
+  intelligence: number;
+  vitality: number;
+  created_at: number;
+  updated_at: number;
+  region_id: string | null;
+  position_x: number | null;
+  position_y: number | null;
+};
 
-const LOCAL_WEB_ORIGINS = new Set([
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "http://localhost:4173",
-  "http://127.0.0.1:4173",
+type InventoryRecord = {
+  item_id: string;
+  quantity: number;
+  is_equipped: number;
+  created_at: number;
+};
+
+const DEFAULT_LOCATION = {
+  regionId: "greenhaven",
+  x: 1200,
+  y: 800,
+};
+
+const CHARACTER_CLASSES = new Set<CharacterClass>([
+  "warrior",
+  "ranger",
+  "mage",
+  "adventurer",
 ]);
 
-app.use(
-  "*",
-  cors({
-    origin: (origin, context) => {
-      if (!origin) {
-        return undefined;
-      }
-
-      const configuredOrigin = context.env.WEB_APP_ORIGIN;
-
-      if (configuredOrigin && origin === configuredOrigin) {
-        return configuredOrigin;
-      }
-
-      if (LOCAL_WEB_ORIGINS.has(origin)) {
-        return origin;
-      }
-
-      return undefined;
-    },
-    allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    maxAge: 600,
-  })
-);
-
-// Register game API routes after the CORS middleware.
-registerGameRoutes(app);
-
-async function readBodyWithLimit(
-  request: Request,
-  maxBytes: number
-): Promise<string | null> {
-  const reader = request.body?.getReader();
-
-  if (!reader) {
-    return "";
-  }
-
-  const chunks: Uint8Array[] = [];
-  let totalBytes = 0;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) {
-        break;
-      }
-
-      totalBytes += value.byteLength;
-
-      if (totalBytes > maxBytes) {
-        await reader.cancel().catch(() => undefined);
-        return null;
-      }
-
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  const combined = new Uint8Array(totalBytes);
-  let offset = 0;
-
-  for (const chunk of chunks) {
-    combined.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  return new TextDecoder().decode(combined);
-}
-
-function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes)
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value)
-  );
-
-  return bytesToHex(new Uint8Array(digest));
-}
-
-function createSessionToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return bytesToHex(bytes);
-}
-
-app.get("/", (c) => {
-  return c.json({
-    name: c.env.GAME_NAME,
-    message: "Welcome to xMoonVerse RPG API",
-    environment: c.env.ENVIRONMENT,
-    version: "0.1.0",
-  });
-});
-
-app.get("/health", (c) => {
-  return c.json({
-    status: "ok",
-    service: "xmoonverse-rpg-api",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-app.get("/api/v1/status", (c) => {
-  return c.json({
-    success: true,
-    game: "xMoonVerse RPG",
-    apiVersion: "v1",
-    environment: c.env.ENVIRONMENT,
-  });
-});
-
-app.get("/api/v1/player/me", async (c) => {
-  c.header("Cache-Control", "no-store");
-
-  const authorization = c.req.header("Authorization");
+function getBearerToken(authorization: string | undefined): string | null {
   const match = authorization?.match(/^Bearer ([a-f0-9]{64})$/);
+  return match?.[1] ?? null;
+}
 
-  if (!match) {
-    return c.json(
-      {
-        success: false,
-        error: "A valid bearer token is required",
-      },
-      401
-    );
+async function getAuthenticatedPlayer(
+  authorization: string | undefined,
+  db: D1Database
+) {
+  const token = getBearerToken(authorization);
+
+  if (!token) {
+    return null;
   }
 
-  let session;
+  return validatePlayerSession(db, token);
+}
 
-  try {
-    session = await validatePlayerSession(c.env.DB, match[1]);
-  } catch {
-    return c.json(
-      {
-        success: false,
-        error: "Unable to validate player session",
-      },
-      503
-    );
-  }
-
-  if (!session) {
-    return c.json(
-      {
-        success: false,
-        error: "Player session is invalid or expired",
-      },
-      401
-    );
-  }
-
-  return c.json({
-    success: true,
-    player: {
-      id: session.playerId,
-      telegram_user_id: session.telegramUserId,
-      username: session.username,
-      avatar_url: session.avatarUrl,
+function serializeCharacter(record: CharacterRecord) {
+  return {
+    id: record.id,
+    playerId: record.player_id,
+    name: record.name,
+    characterClass: record.character_class,
+    stats: {
+      health: record.health,
+      maxHealth: record.max_health,
+      mana: record.mana,
+      maxMana: record.max_mana,
+      strength: record.strength,
+      agility: record.agility,
+      intelligence: record.intelligence,
+      vitality: record.vitality,
     },
-    session: {
-      id: session.sessionId,
+    progression: {
+      level: record.level,
+      experience: record.experience,
+      skillPoints: record.skill_points,
     },
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+  };
+}
+
+export function registerGameRoutes(app: Hono<Env>) {
+  app.get("/api/v1/game/state", async (c) => {
+    c.header("Cache-Control", "no-store");
+
+    let player;
+
+    try {
+      player = await getAuthenticatedPlayer(
+        c.req.header("Authorization"),
+        c.env.DB
+      );
+    } catch {
+      return c.json(
+        {
+          success: false,
+          error: "Unable to validate player session",
+        },
+        503
+      );
+    }
+
+    if (!player) {
+      return c.json(
+        {
+          success: false,
+          error: "Authentication required",
+        },
+        401
+      );
+    }
+
+    try {
+      const character = await c.env.DB.prepare(
+        `SELECT
+           characters.id,
+           characters.player_id,
+           characters.name,
+           characters.character_class,
+           characters.level,
+           characters.experience,
+           characters.skill_points,
+           characters.health,
+           characters.max_health,
+           characters.mana,
+           characters.max_mana,
+           characters.strength,
+           characters.agility,
+           characters.intelligence,
+           characters.vitality,
+           characters.created_at,
+           characters.updated_at,
+           locations.region_id,
+           locations.position_x,
+           locations.position_y
+         FROM game_characters AS characters
+         LEFT JOIN player_locations AS locations
+           ON locations.character_id = characters.id
+         WHERE characters.player_id = ?
+         ORDER BY characters.created_at ASC
+         LIMIT 1`
+      )
+        .bind(player.playerId)
+        .first<CharacterRecord>();
+
+      if (!character) {
+        return c.json({
+          success: true,
+          hasCharacter: false,
+          character: null,
+          location: null,
+          inventory: [],
+        });
+      }
+
+      const inventory = await c.env.DB.prepare(
+        `SELECT item_id, quantity, is_equipped, created_at
+         FROM inventory_items
+         WHERE character_id = ?
+         ORDER BY created_at ASC`
+      )
+        .bind(character.id)
+        .all<InventoryRecord>();
+
+      return c.json({
+        success: true,
+        hasCharacter: true,
+        character: serializeCharacter(character),
+        location: {
+          regionId: character.region_id ?? DEFAULT_LOCATION.regionId,
+          x: character.position_x ?? DEFAULT_LOCATION.x,
+          y: character.position_y ?? DEFAULT_LOCATION.y,
+        },
+        inventory: (inventory.results ?? []).map((item) => ({
+          itemId: item.item_id,
+          quantity: item.quantity,
+          equipped: item.is_equipped === 1,
+          acquiredAt: item.created_at,
+        })),
+      });
+    } catch {
+      return c.json(
+        {
+          success: false,
+          error: "Unable to load game state",
+        },
+        503
+      );
+    }
   });
-});
 
-app.post("/api/v1/auth/telegram", async (c) => {
-  c.header("Cache-Control", "no-store");
+  app.post("/api/v1/game/character", async (c) => {
+    c.header("Cache-Control", "no-store");
 
-  if (!c.env.TELEGRAM_BOT_TOKEN) {
-    return c.json(
-      {
-        success: false,
-        error: "Authentication service is not configured",
-      },
-      503
-    );
-  }
+    let player;
 
-  const contentLength = c.req.header("Content-Length");
+    try {
+      player = await getAuthenticatedPlayer(
+        c.req.header("Authorization"),
+        c.env.DB
+      );
+    } catch {
+      return c.json(
+        {
+          success: false,
+          error: "Unable to validate player session",
+        },
+        503
+      );
+    }
 
-  if (contentLength !== undefined) {
-    const declaredSize = Number(contentLength);
+    if (!player) {
+      return c.json(
+        {
+          success: false,
+          error: "Authentication required",
+        },
+        401
+      );
+    }
+
+    let body: unknown;
+
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json(
+        {
+          success: false,
+          error: "Invalid JSON body",
+        },
+        400
+      );
+    }
+
+    if (typeof body !== "object" || body === null) {
+      return c.json(
+        {
+          success: false,
+          error: "Invalid character data",
+        },
+        400
+      );
+    }
+
+    const data = body as Record<string, unknown>;
+    const name = typeof data.name === "string" ? data.name.trim() : "";
+    const characterClass = data.characterClass;
+
+    if (name.length < 2 || name.length > 24) {
+      return c.json(
+        {
+          success: false,
+          error: "Character name must contain 2 to 24 characters",
+        },
+        400
+      );
+    }
 
     if (
-      Number.isFinite(declaredSize) &&
-      declaredSize > MAX_BODY_SIZE
+      typeof characterClass !== "string" ||
+      !CHARACTER_CLASSES.has(characterClass as CharacterClass)
     ) {
       return c.json(
         {
           success: false,
-          error: "Request body is too large",
+          error: "Invalid character class",
         },
-        413
+        400
       );
     }
-  }
 
-  let rawBody: string | null;
+    const now = Math.floor(Date.now() / 1000);
+    const characterId = crypto.randomUUID();
 
-  try {
-    rawBody = await readBodyWithLimit(
-      c.req.raw,
-      MAX_BODY_SIZE
-    );
-  } catch {
-    return c.json(
-      {
-        success: false,
-        error: "Unable to read request body",
-      },
-      400
-    );
-  }
+    try {
+      const existing = await c.env.DB.prepare(
+        `SELECT id
+         FROM game_characters
+         WHERE player_id = ?
+         LIMIT 1`
+      )
+        .bind(player.playerId)
+        .first<{ id: string }>();
 
-  if (rawBody === null) {
-    return c.json(
-      {
-        success: false,
-        error: "Request body is too large",
-      },
-      413
-    );
-  }
+      if (existing) {
+        return c.json(
+          {
+            success: false,
+            error: "Character already exists",
+          },
+          409
+        );
+      }
 
-  let body: unknown;
-
-  try {
-    body = JSON.parse(rawBody);
-  } catch {
-    return c.json(
-      {
-        success: false,
-        error: "Invalid JSON body",
-      },
-      400
-    );
-  }
-
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    !("initData" in body) ||
-    typeof body.initData !== "string" ||
-    body.initData.length === 0 ||
-    body.initData.length > MAX_INIT_DATA_LENGTH
-  ) {
-    return c.json(
-      {
-        success: false,
-        error: "Valid Telegram initData is required",
-      },
-      400
-    );
-  }
-
-  const result = await verifyTelegramInitData(
-    body.initData,
-    c.env.TELEGRAM_BOT_TOKEN,
-    {
-      maxAgeSeconds: TELEGRAM_AUTH_MAX_AGE,
-      futureSkewSeconds: 60,
-    }
-  );
-
-  if (!result.ok) {
-    return c.json(
-      {
-        success: false,
-        error: "Telegram authentication failed",
-      },
-      401
-    );
-  }
-
-  const initDataHash = await sha256Hex(body.initData);
-
-  const now = Math.floor(Date.now() / 1000);
-  const expiresAt = now + SESSION_DURATION;
-  const authDataExpiresAt =
-    result.authDate + TELEGRAM_AUTH_MAX_AGE;
-
-  const telegramUser = result.user;
-  const telegramUserId = String(telegramUser.id);
-
-  const username =
-    telegramUser.username ??
-    [telegramUser.first_name, telegramUser.last_name]
-      .filter(Boolean)
-      .join(" ");
-
-  const avatarUrl = telegramUser.photo_url ?? null;
-
-  const playerId = crypto.randomUUID();
-  const sessionId = crypto.randomUUID();
-  const sessionToken = createSessionToken();
-  const sessionTokenHash = await sha256Hex(sessionToken);
-
-  let batchResults: D1Result[];
-
-  try {
-    batchResults = await c.env.DB.batch([
-      c.env.DB.prepare(
-        `DELETE FROM telegram_auth_replays
-         WHERE expires_at <= ?`
-      ).bind(now),
-
-      c.env.DB.prepare(
-        `INSERT OR IGNORE INTO telegram_auth_replays
-         (init_data_hash, expires_at, created_at)
-         VALUES (?, ?, ?)`
-      ).bind(initDataHash, authDataExpiresAt, now),
-
-      c.env.DB.prepare(
-        `INSERT INTO player_profiles (
-          id,
-          telegram_user_id,
-          username,
-          avatar_url,
-          created_at,
-          updated_at
+      const result = await c.env.DB.prepare(
+        `INSERT INTO game_characters (
+           id,
+           player_id,
+           name,
+           character_class,
+           level,
+           experience,
+           skill_points,
+           health,
+           max_health,
+           mana,
+           max_mana,
+           strength,
+           agility,
+           intelligence,
+           vitality,
+           created_at,
+           updated_at
+         )
+         VALUES (?, ?, ?, ?, 1, 0, 0, 100, 100, 50, 50, 10, 10, 10, 10, ?, ?)`
+      )
+        .bind(
+          characterId,
+          player.playerId,
+          name,
+          characterClass,
+          now,
+          now
         )
-        SELECT ?, ?, ?, ?, ?, ?
-        WHERE changes() = 1
-        ON CONFLICT(telegram_user_id)
-        DO UPDATE SET
-          username = excluded.username,
-          avatar_url = excluded.avatar_url,
-          updated_at = excluded.updated_at`
-      ).bind(
-        playerId,
-        telegramUserId,
-        username,
-        avatarUrl,
-        now,
-        now
-      ),
+        .run();
 
-      c.env.DB.prepare(
-        `INSERT INTO player_sessions (
-          id,
-          player_id,
-          token_hash,
-          created_at,
-          expires_at
+      if (result.meta.changes !== 1) {
+        throw new Error("Character creation failed");
+      }
+
+      await c.env.DB.prepare(
+        `INSERT INTO player_locations (
+           character_id,
+           region_id,
+           position_x,
+           position_y,
+           updated_at
+         )
+         VALUES (?, ?, ?, ?, ?)`
+      )
+        .bind(
+          characterId,
+          DEFAULT_LOCATION.regionId,
+          DEFAULT_LOCATION.x,
+          DEFAULT_LOCATION.y,
+          now
         )
-        SELECT ?, id, ?, ?, ?
-        FROM player_profiles
-        WHERE telegram_user_id = ?
-          AND changes() = 1`
-      ).bind(
-        sessionId,
-        sessionTokenHash,
-        now,
-        expiresAt,
-        telegramUserId
-      ),
-    ]);
-  } catch {
-    return c.json(
-      {
-        success: false,
-        error: "Authentication storage is unavailable",
-      },
-      503
-    );
-  }
+        .run();
 
-  const replayResult = batchResults[1];
+      const character = await c.env.DB.prepare(
+        `SELECT
+           game_characters.id,
+           game_characters.player_id,
+           game_characters.name,
+           game_characters.character_class,
+           game_characters.level,
+           game_characters.experience,
+           game_characters.skill_points,
+           game_characters.health,
+           game_characters.max_health,
+           game_characters.mana,
+           game_characters.max_mana,
+           game_characters.strength,
+           game_characters.agility,
+           game_characters.intelligence,
+           game_characters.vitality,
+           game_characters.created_at,
+           game_characters.updated_at,
+           player_locations.region_id,
+           player_locations.position_x,
+           player_locations.position_y
+         FROM game_characters
+         LEFT JOIN player_locations
+           ON player_locations.character_id = game_characters.id
+         WHERE game_characters.id = ?
+         LIMIT 1`
+      )
+        .bind(characterId)
+        .first<CharacterRecord>();
 
-  if (replayResult.meta.changes !== 1) {
-    return c.json(
-      {
-        success: false,
-        error: "Telegram authentication data has already been used",
-      },
-      409
-    );
-  }
+      if (!character) {
+        throw new Error("Created character could not be loaded");
+      }
 
-  const sessionResult = batchResults[3];
-
-  if (sessionResult.meta.changes !== 1) {
-    return c.json(
-      {
-        success: false,
-        error: "Unable to create player session",
-      },
-      503
-    );
-  }
-
-  let player: {
-    id: string;
-    telegram_user_id: string;
-    username: string;
-    avatar_url: string | null;
-  } | null;
-
-  try {
-    player = await c.env.DB.prepare(
-      `SELECT id, telegram_user_id, username, avatar_url
-       FROM player_profiles
-       WHERE telegram_user_id = ?
-       LIMIT 1`
-    )
-      .bind(telegramUserId)
-      .first();
-
-    if (!player) {
-      throw new Error("Player profile was not found");
+      return c.json(
+        {
+          success: true,
+          character: serializeCharacter(character),
+          location: {
+            regionId: character.region_id ?? DEFAULT_LOCATION.regionId,
+            x: character.position_x ?? DEFAULT_LOCATION.x,
+            y: character.position_y ?? DEFAULT_LOCATION.y,
+          },
+        },
+        201
+      );
+    } catch {
+      return c.json(
+        {
+          success: false,
+          error: "Unable to create character",
+        },
+        503
+      );
     }
-  } catch {
-    return c.json(
-      {
-        success: false,
-        error: "Unable to load player profile",
-      },
-      503
-    );
-  }
-
-  return c.json({
-    success: true,
-    authenticated: true,
-    user: result.user,
-    player,
-    session: {
-      id: sessionId,
-      token: sessionToken,
-      expiresAt,
-    },
-    authDate: result.authDate,
-    expiresAt,
   });
-});
-
-export default app;
+}
