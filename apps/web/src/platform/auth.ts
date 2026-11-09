@@ -81,6 +81,8 @@ export type PlayerMeResult =
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "");
 
+let telegramAuthenticationPromise: Promise<TelegramAuthResult> | null = null;
+
 function isAuthenticatedPlayer(
   value: unknown
 ): value is AuthenticatedPlayer {
@@ -150,7 +152,7 @@ function isPlayerMeResponse(
   );
 }
 
-export async function authenticateTelegram(): Promise<TelegramAuthResult> {
+async function performTelegramAuthentication(): Promise<TelegramAuthResult> {
   const webApp = getTelegramWebApp();
 
   if (!webApp) {
@@ -229,6 +231,26 @@ export async function authenticateTelegram(): Promise<TelegramAuthResult> {
     ok: true,
     data: data as TelegramAuthResponse,
   };
+}
+
+export function authenticateTelegram(): Promise<TelegramAuthResult> {
+  if (telegramAuthenticationPromise) {
+    return telegramAuthenticationPromise;
+  }
+
+  const request = performTelegramAuthentication();
+
+  telegramAuthenticationPromise = request;
+
+  const clearRequest = () => {
+    if (telegramAuthenticationPromise === request) {
+      telegramAuthenticationPromise = null;
+    }
+  };
+
+  void request.then(clearRequest, clearRequest);
+
+  return request;
 }
 
 export async function fetchCurrentPlayer(
